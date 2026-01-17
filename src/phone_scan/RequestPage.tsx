@@ -14,10 +14,10 @@ function RequestPage() {
 
   // --- DATA ARRAY ---
   const requestOptions = [
-    { label: "Medical Certificate", name: "Medical Certificate", price: 100, subOptions: ["Work", "School", "Travel"] },
-    { label: "Death Certificate", name: "Death Certificate", price: 150, subOptions: ["Original Copy", "Certified True Copy"] },
-    { label: "Birth Certificate", name: "Birth Certificate", price: 200, subOptions: ["Newborn", "Late Registration"] },
-    { label: "Other Request", name: "Other Request", price: 50, subOptions: ["Permit", "Clearance", "Certification"] },
+    { label: "Medical Certificate", name: "Medical Certificate",days: "3", price: 100, subOptions: ["Work", "School", "Travel"], subQuestion: [{question: 'Father Name', answer:''}, {question: 'Father Citizen ship', answer:''}] },
+    { label: "Death Certificate", name: "Death Certificate", days: "4", price: 150, subOptions: ["Original Copy", "Certified True Copy"] },
+    { label: "Birth Certificate", name: "Birth Certificate", days: "1", price: 200, subOptions: ["Newborn", "Late Registration"] },
+    { label: "Other Request", name: "Other Request", days: "4", price: 50, subOptions: ["Permit", "Clearance", "Certification"] },
   ];
 
   // Calculate Total Price
