@@ -47,7 +47,7 @@ const Layout: React.FC = () => {
         <div className="p-6 flex items-center justify-between overflow-hidden">
           {!isCollapsed && (
             <span className={`font-black text-xl tracking-tighter ${themeClasses.logo}`}>
-              PRISM<span className={themeClasses.logoDot}>.</span>
+              Request Certificate System<span className={themeClasses.logoDot}>.</span>
             </span>
           )}
           <div className="flex gap-2">

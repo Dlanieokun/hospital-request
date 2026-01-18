@@ -6,6 +6,7 @@ import ReceiptPage from './phone_scan/ReceiptPage'
 import Layout from './web/layout'
 import { Settings } from 'lucide-react'
 import SettingsSetup from './web/Settings'
+import Treasurer from './web/Treasurer'
 
 function App() {
   return (
@@ -19,7 +20,7 @@ function App() {
       <Route path="/hospital" element={<Layout />}>
         {/* These will render inside the <Outlet /> in Layout.tsx */}
         <Route index element={<div>Overview Content</div>} />
-        <Route path="treasurer" element={<div>Treasury Content</div>} />
+        <Route path="treasurer" element={<Treasurer />} />
         <Route path="certificate" element={<div>Certificate Content</div>} />
         <Route path="settings" element={<SettingsSetup />} />
       </Route>
