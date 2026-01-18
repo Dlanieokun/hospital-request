@@ -1,24 +1,48 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ChangeEvent } from "react";
 import { useNavigate } from 'react-router-dom'; 
 
+// --- TYPES & INTERFACES ---
+interface SubQuestion {
+  question: string;
+  type: string;
+  answer: string;
+}
+
+interface RequestOption {
+  label: string;
+  name: string;
+  days: string;
+  price: number;
+  subOptions: string[];
+  subQuestion?: SubQuestion[];
+}
+
+interface UserData {
+  firstname: string;
+  lastname: string;
+}
+
+interface RequestDate {
+  date: string;
+}
+
 function RequestPage() {
-  const [user, setUser] = useState(null);
-  const [selectedRequests, setSelectedRequests] = useState([]);
-  
-  // Modal states
-  const [isOptionsModalOpen, setIsOptionsModalOpen] = useState(false);
-  const [activeRequest, setActiveRequest] = useState(null);
-  const [isQuestionsModalOpen, setIsQuestionsModalOpen] = useState(false);
-  const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
-  
-  // NEW: Request Date Modal States
-  const [isDateModalOpen, setIsDateModalOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState("");
+  const navigate = useNavigate();
 
-  const navigate = useNavigate(); 
+  // --- STATE ---
+  const [user, setUser] = useState<UserData | null>(null);
+  const [selectedRequests, setSelectedRequests] = useState<string[]>([]);
+  
+  const [isOptionsModalOpen, setIsOptionsModalOpen] = useState<boolean>(false);
+  const [activeRequest, setActiveRequest] = useState<RequestOption | null>(null);
+  const [isQuestionsModalOpen, setIsQuestionsModalOpen] = useState<boolean>(false);
+  const [isDateModalOpen, setIsDateModalOpen] = useState<boolean>(false);
+  const [isSubmitModalOpen, setIsSubmitModalOpen] = useState<boolean>(false);
+  
+  const [selectedDate, setSelectedDate] = useState<string>("");
 
-  // --- DATA ARRAYS ---
-  const [requestOptions, setRequestOptions] = useState([
+  // --- DATA ---
+  const [requestOptions, setRequestOptions] = useState<RequestOption[]>([
     { 
       label: "Medical Certificate", 
       name: "Medical Certificate", 
@@ -33,14 +57,15 @@ function RequestPage() {
     },
     { label: "Death Certificate", name: "Death Certificate", days: "4", price: 150, subOptions: ["Original Copy", "Certified True Copy"] },
     { label: "Birth Certificate", name: "Birth Certificate", days: "1", price: 200, subOptions: ["Newborn", "Late Registration"] },
-    { label: "Other Request", name: "Other Request", days: "4", price: 50, subOptions: [] },
+    { label: "Other Request", name: "Other Request", days: "4", price: 50, subOptions: ["Permit", "Clearance", "Certification"] },
   ]);
-  
-  const [requestDate, setRequestDate] = useState([
+
+  const [requestDateList] = useState<RequestDate[]>([
     { date: "01/23/2024" },
     { date: "04/03/2024" },
   ]);
 
+  // --- LOGIC ---
   const totalAmount = selectedRequests.reduce((sum, requestName) => {
     const item = requestOptions.find(r => r.name === requestName);
     return sum + (item ? item.price : 0);
@@ -57,7 +82,7 @@ function RequestPage() {
     }
   }, []);
 
-  const handleAnswerChange = (requestName, questionIndex, value) => {
+  const handleAnswerChange = (requestName: string, questionIndex: number, value: string) => {
     setRequestOptions(prevOptions => 
       prevOptions.map(opt => {
         if (opt.name === requestName) {
@@ -70,11 +95,13 @@ function RequestPage() {
     );
   };
 
-  const handleCheckboxChange = (requestName) => {
+  const handleCheckboxChange = (requestName: string) => {
     if (selectedRequests.includes(requestName)) {
       setSelectedRequests(prev => prev.filter(item => item !== requestName));
     } else {
       const request = requestOptions.find(r => r.name === requestName);
+      if (!request) return;
+
       setActiveRequest(request);
 
       if (request.subOptions && request.subOptions.length > 0) {
@@ -91,28 +118,27 @@ function RequestPage() {
     if (activeRequest?.subQuestion && activeRequest.subQuestion.length > 0) {
       setIsOptionsModalOpen(false);
       setIsQuestionsModalOpen(true);
-    } else {
+    } else if (activeRequest) {
       addRequest(activeRequest.name);
       setIsOptionsModalOpen(false);
     }
   };
 
-  const addRequest = (name) => {
+  const addRequest = (name: string) => {
     if (!selectedRequests.includes(name)) {
       setSelectedRequests(prev => [...prev, name]);
     }
   };
 
   const confirmQuestions = () => {
-    addRequest(activeRequest.name);
+    if (activeRequest) addRequest(activeRequest.name);
     setIsQuestionsModalOpen(false);
   };
 
-  // NEW: Logic to handle date selection and proceed to payment
-  const handleDateSelection = (date) => {
+  const handleDateSelection = (date: string) => {
     setSelectedDate(date);
     setIsDateModalOpen(false);
-    setIsSubmitModalOpen(true); // Open payment modal after date is picked
+    setIsSubmitModalOpen(true);
   };
 
   const handleExit = () => {
@@ -120,7 +146,7 @@ function RequestPage() {
     navigate('/scanner'); 
   };
 
-  const navigateToReceipt = (method) => {
+  const navigateToReceipt = (method: string) => {
     const detailedRequests = selectedRequests.map(name => 
       requestOptions.find(opt => opt.name === name)
     );
@@ -129,7 +155,7 @@ function RequestPage() {
         requests: detailedRequests, 
         total: totalAmount,
         paymentMethod: method,
-        requestedDate: selectedDate, // Passing the selected date to receipt
+        requestedDate: selectedDate,
         userName: user ? `${user.firstname} ${user.lastname}` : "Guest"
       } 
     });
@@ -139,12 +165,12 @@ function RequestPage() {
     <div className="relative min-h-screen flex flex-col items-center justify-center p-4 bg-slate-50">
       
       {/* 1. Purpose Modal */}
-      {isOptionsModalOpen && (
+      {isOptionsModalOpen && activeRequest && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 animate-in zoom-in duration-200">
-            <h2 className="text-xl font-bold mb-4 text-gray-800">Purpose for {activeRequest?.label}</h2>
+            <h2 className="text-xl font-bold mb-4 text-gray-800">Purpose for {activeRequest.label}</h2>
             <div className="space-y-2">
-              {activeRequest?.subOptions.map((opt) => (
+              {activeRequest.subOptions.map((opt) => (
                 <button 
                   key={opt} 
                   onClick={handlePurposeSelection} 
@@ -160,56 +186,60 @@ function RequestPage() {
       )}
 
       {/* 2. Additional Questions Modal */}
-      {isQuestionsModalOpen && (
+      {isQuestionsModalOpen && activeRequest && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 animate-in zoom-in duration-200">
             <h2 className="text-xl font-bold mb-1 text-gray-800">Additional Information</h2>
-            <p className="text-sm text-gray-500 mb-6 italic">Required for {activeRequest?.label}</p>
+            <p className="text-sm text-gray-500 mb-6 italic">Required for {activeRequest.label}</p>
             <div className="space-y-4">
-              {requestOptions.find(r => r.name === activeRequest?.name)?.subQuestion?.map((q, index) => (
+              {/* FIXED: We find the request in the state to get live updates for q.answer */}
+              {requestOptions.find(r => r.name === activeRequest.name)?.subQuestion?.map((q, index) => (
                 <div key={index}>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">{q.question}</label>
                   <input 
                     type={q.type} 
                     value={q.answer}
-                    onChange={(e) => handleAnswerChange(activeRequest.name, index, e.target.value)}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => handleAnswerChange(activeRequest.name, index, e.target.value)}
                     className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                   />
                 </div>
               ))}
             </div>
             <div className="flex gap-3 mt-8">
-              <button onClick={() => { setIsQuestionsModalOpen(false); if (activeRequest?.subOptions?.length > 0) setIsOptionsModalOpen(true); }} className="flex-1 px-4 py-3 text-gray-500 bg-gray-100 rounded-xl font-bold hover:bg-gray-200 transition">Back</button>
+              <button 
+                onClick={() => { setIsQuestionsModalOpen(false); if (activeRequest.subOptions.length > 0) setIsOptionsModalOpen(true); }} 
+                className="flex-1 px-4 py-3 text-gray-500 bg-gray-100 rounded-xl font-bold hover:bg-gray-200 transition"
+              >
+                Back
+              </button>
               <button onClick={confirmQuestions} className="flex-1 px-4 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition">Continue</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* NEW: 2.5 Request Date Modal */}
+      {/* 3. Request Date Modal */}
       {isDateModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 animate-in zoom-in duration-200">
             <h2 className="text-xl font-bold mb-4 text-gray-800">Select Request Date</h2>
-            <p className="text-sm text-gray-500 mb-4">Please choose a preferred schedule:</p>
             <div className="space-y-2">
-              {requestDate.map((item, index) => (
+              {requestDateList.map((item, index) => (
                 <button 
                   key={index} 
                   onClick={() => handleDateSelection(item.date)} 
                   className="w-full text-left px-4 py-3 border border-gray-200 rounded-lg hover:bg-indigo-50 hover:border-indigo-300 transition-all flex justify-between items-center"
                 >
                   <span className="font-medium text-gray-700">{item.date}</span>
-                  <svg className="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
                 </button>
               ))}
             </div>
-            <button onClick={() => setIsDateModalOpen(false)} className="mt-4 w-full text-gray-400 text-sm hover:text-gray-600 transition">Cancel</button>
+            <button onClick={() => setIsDateModalOpen(false)} className="mt-4 w-full text-gray-400 text-sm hover:text-gray-600">Cancel</button>
           </div>
         </div>
       )}
 
-      {/* 3. Payment Selection Modal */}
+      {/* 4. Payment Selection Modal */}
       {isSubmitModalOpen && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4 backdrop-blur-md">
           <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-8 text-center animate-in fade-in duration-300">
@@ -228,11 +258,12 @@ function RequestPage() {
         </div>
       )}
 
-      {/* Main UI */}
+      {/* Header Info */}
       <div className="absolute top-0 right-0 p-6 text-gray-500 italic text-sm">
         Logged in as: <span className="font-bold text-gray-800">{user ? `${user.firstname} ${user.lastname}` : "Guest"}</span>
       </div>
 
+      {/* Main List */}
       <div className="w-full max-w-xl">
         <h1 className="text-3xl font-black mb-8 text-gray-900 text-center uppercase tracking-tighter">Document Request Center</h1>
         <div className="grid grid-cols-1 gap-4">
@@ -258,7 +289,7 @@ function RequestPage() {
         <button 
           className="w-full mt-10 px-6 py-5 bg-indigo-600 text-white font-black text-xl rounded-2xl shadow-2xl shadow-indigo-200 hover:bg-indigo-700 transition-all active:scale-[0.98] disabled:opacity-20"
           disabled={selectedRequests.length === 0}
-          onClick={() => setIsDateModalOpen(true)} // Changed: Go to Date selection first
+          onClick={() => setIsDateModalOpen(true)}
         >
           PROCEED (₱{totalAmount.toFixed(2)})
         </button>

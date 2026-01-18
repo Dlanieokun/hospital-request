@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { 
-  ChevronLeft, ChevronRight, Home, LogOut, 
+  ChevronLeft, ChevronRight, Home, 
   Sun, Moon, Landmark, FileCheck, Settings 
 } from 'lucide-react';
 
