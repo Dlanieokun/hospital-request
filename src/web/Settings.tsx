@@ -1,9 +1,31 @@
 import React, { useState } from 'react';
-import { Plus, Edit2, Trash2, FileText, X, PlusCircle, Clock, HelpCircle } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, PlusCircle, HelpCircle } from 'lucide-react';
+
+// --- Interfaces for Type Safety ---
+interface SubOption {
+  id: number;
+  label: string;
+}
+
+interface SubQuestion {
+  id: number;
+  question: string;
+  type: string;
+}
+
+interface Certificate {
+  id: number;
+  name: string;
+  price: string;
+  days: string;
+  status: string;
+  subOptions: SubOption[];
+  subQuestions: SubQuestion[];
+}
 
 const SettingsSetup = () => {
   // --- Data States ---
-  const [certificates, setCertificates] = useState([
+  const [certificates, setCertificates] = useState<Certificate[]>([
     { id: 1, name: 'Medical Certificate', price: '₱150.00', status: 'Active', days: '1-2 Days', subOptions: [], subQuestions: [] },
     { id: 2, name: 'Birth Certificate', price: '₱200.00', status: 'Active', days: '3-5 Days', subOptions: [], subQuestions: [] },
   ]);
@@ -15,8 +37,8 @@ const SettingsSetup = () => {
   // --- Form & Dynamic Rows States ---
   const [formData, setFormData] = useState({ name: '', price: '', days: '', status: 'Active' });
   const [editFormData, setEditFormData] = useState({ id: 0, name: '', price: '', days: '', status: 'Active' });
-  const [subOptions, setSubOptions] = useState<any[]>([]); // For Add-ons (No Type)
-  const [subQuestions, setSubQuestions] = useState<any[]>([]); // For Questions (With Type)
+  const [subOptions, setSubOptions] = useState<SubOption[]>([]);
+  const [subQuestions, setSubQuestions] = useState<SubQuestion[]>([]);
 
   // --- Handlers ---
   const resetForm = () => {
@@ -27,20 +49,21 @@ const SettingsSetup = () => {
 
   const handleAddSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const newCert = {
+    const numericPrice = parseFloat(formData.price) || 0;
+    const newCert: Certificate = {
       ...formData,
       id: Date.now(),
-      price: `₱${parseFloat(formData.price).toFixed(2)}`,
-      subOptions,
-      subQuestions
+      price: `₱${numericPrice.toFixed(2)}`,
+      subOptions: [...subOptions],
+      subQuestions: [...subQuestions]
     };
     setCertificates([...certificates, newCert]);
     setIsAddModalOpen(false);
     resetForm();
   };
 
-  const handleEditClick = (cert: any) => {
-    const numericPrice = cert.price.replace('₱', '').replace(',', '');
+  const handleEditClick = (cert: Certificate) => {
+    const numericPrice = cert.price.replace(/[₱,]/g, '');
     setEditFormData({ ...cert, price: numericPrice });
     setSubOptions(cert.subOptions || []);
     setSubQuestions(cert.subQuestions || []);
@@ -49,12 +72,19 @@ const SettingsSetup = () => {
 
   const handleUpdateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const numericPrice = parseFloat(editFormData.price) || 0;
     setCertificates(certificates.map(cert => 
       cert.id === editFormData.id 
-        ? { ...editFormData, price: `₱${parseFloat(editFormData.price).toFixed(2)}`, subOptions, subQuestions }
+        ? { 
+            ...editFormData, 
+            price: `₱${numericPrice.toFixed(2)}`, 
+            subOptions: [...subOptions], 
+            subQuestions: [...subQuestions] 
+          }
         : cert
     ));
     setIsEditModalOpen(false);
+    resetForm();
   };
 
   // --- Dynamic Helpers ---
@@ -70,7 +100,7 @@ const SettingsSetup = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
           <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Certificate Settings</h2>
-          <p className="text-slate-500 dark:text-slate-400">Configure certificate details, additional fees, and form requirements.</p>
+          <p className="text-slate-500 dark:text-slate-400">Configure certificate details and form requirements.</p>
         </div>
         <button 
           onClick={() => { resetForm(); setIsAddModalOpen(true); }}
@@ -109,7 +139,7 @@ const SettingsSetup = () => {
       {(isAddModalOpen || isEditModalOpen) && (
         <Modal 
           title={isAddModalOpen ? "Add New Certificate" : "Edit Certificate"}
-          onClose={() => { setIsAddModalOpen(false); setIsEditModalOpen(false); }}
+          onClose={() => { setIsAddModalOpen(false); setIsEditModalOpen(false); resetForm(); }}
           onSubmit={isAddModalOpen ? handleAddSubmit : handleUpdateSubmit}
           formData={isAddModalOpen ? formData : editFormData}
           setFormData={isAddModalOpen ? setFormData : setEditFormData}
@@ -147,7 +177,6 @@ const Modal = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
       <div className="bg-white dark:bg-slate-950 w-full max-w-2xl rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col max-h-[90vh]">
-        {/* Sticky Header */}
         <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-950 sticky top-0 z-10">
           <h3 className="text-xl font-bold text-slate-900 dark:text-white">{title}</h3>
           <button onClick={onClose} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 transition-colors"><X size={20} /></button>
@@ -163,7 +192,7 @@ const Modal = ({
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Base Fee (₱)</label>
-                <input required type="number" value={formData.price} onChange={(e) => setFormData({...formData, price: e.target.value})} className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-transparent outline-none focus:ring-2 focus:ring-emerald-500/20" />
+                <input required type="number" step="0.01" value={formData.price} onChange={(e) => setFormData({...formData, price: e.target.value})} className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-transparent outline-none focus:ring-2 focus:ring-emerald-500/20" />
               </div>
               <div>
                 <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Processing Time</label>
@@ -172,7 +201,7 @@ const Modal = ({
             </div>
           </div>
 
-          {/* Section 2: Sub-options / Add-ons (TYPE REMOVED) */}
+          {/* Section 2: Sub-options */}
           <div className="space-y-3">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
               <div className="flex items-center gap-2">
@@ -190,16 +219,10 @@ const Modal = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {subOptions.map((opt) => (
+                  {subOptions.map((opt: any) => (
                     <tr key={opt.id}>
                       <td className="p-2">
-                        <input 
-                          type="text" 
-                          value={opt.label} 
-                          onChange={(e) => updateSubOption(opt.id, 'label', e.target.value)} 
-                          placeholder="e.g. Documentary Stamp" 
-                          className="w-full bg-transparent border-none focus:ring-0 text-slate-700 dark:text-slate-200" 
-                        />
+                        <input type="text" value={opt.label} onChange={(e) => updateSubOption(opt.id, 'label', e.target.value)} placeholder="e.g. Documentary Stamp" className="w-full bg-transparent border-none focus:ring-0 text-slate-700 dark:text-slate-200" />
                       </td>
                       <td className="p-2 text-center">
                         <button type="button" onClick={() => removeSubOption(opt.id)} className="text-slate-400 hover:text-rose-500 transition-colors"><Trash2 size={14} /></button>
@@ -207,14 +230,14 @@ const Modal = ({
                     </tr>
                   ))}
                   {subOptions.length === 0 && (
-                    <tr><td className="p-4 text-center text-xs text-slate-400 italic">No add-ons added yet.</td></tr>
+                    <tr key="empty-options"><td className="p-4 text-center text-xs text-slate-400 italic">No add-ons added yet.</td></tr>
                   )}
                 </tbody>
               </table>
             </div>
           </div>
 
-          {/* Section 3: Sub-questions (Question + Type) */}
+          {/* Section 3: Sub-questions */}
           <div className="space-y-3">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
               <div className="flex items-center gap-2">
@@ -233,23 +256,13 @@ const Modal = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {subQuestions.map((q) => (
+                  {subQuestions.map((q: any) => (
                     <tr key={q.id}>
                       <td className="p-2">
-                        <input 
-                          type="text" 
-                          value={q.question} 
-                          onChange={(e) => updateSubQuestion(q.id, 'question', e.target.value)} 
-                          placeholder="e.g. Purpose of Request" 
-                          className="w-full bg-transparent border-none focus:ring-0 text-slate-700 dark:text-slate-200" 
-                        />
+                        <input type="text" value={q.question} onChange={(e) => updateSubQuestion(q.id, 'question', e.target.value)} placeholder="e.g. Purpose of Request" className="w-full bg-transparent border-none focus:ring-0 text-slate-700 dark:text-slate-200" />
                       </td>
                       <td className="p-2">
-                        <select 
-                          value={q.type} 
-                          onChange={(e) => updateSubQuestion(q.id, 'type', e.target.value)} 
-                          className="w-full bg-transparent border-none focus:ring-0 text-slate-700 dark:text-slate-200"
-                        >
+                        <select value={q.type} onChange={(e) => updateSubQuestion(q.id, 'type', e.target.value)} className="w-full bg-transparent border-none focus:ring-0 text-slate-700 dark:text-slate-200">
                           <option>Text</option>
                           <option>Number</option>
                           <option>Date</option>
@@ -262,14 +275,13 @@ const Modal = ({
                     </tr>
                   ))}
                   {subQuestions.length === 0 && (
-                    <tr><td colSpan={2} className="p-4 text-center text-xs text-slate-400 italic">No questions added yet.</td></tr>
+                    <tr key="empty-questions"><td colSpan={3} className="p-4 text-center text-xs text-slate-400 italic">No questions added yet.</td></tr>
                   )}
                 </tbody>
               </table>
             </div>
           </div>
 
-          {/* Sticky Footer Action Buttons */}
           <div className="flex gap-3 pt-6 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-950 sticky bottom-0 mt-auto">
             <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl font-bold text-slate-500 hover:bg-slate-100 transition-colors">Cancel</button>
             <button type="submit" className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2.5 rounded-xl font-bold shadow-lg shadow-emerald-500/20 transition-all active:scale-95">

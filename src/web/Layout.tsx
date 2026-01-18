@@ -5,7 +5,7 @@ import {
   Sun, Moon, Landmark, FileCheck, Settings 
 } from 'lucide-react';
 
-const Layout: React.FC = () => {
+const Layouts: React.FC = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const location = useLocation();
@@ -114,4 +114,4 @@ const Layout: React.FC = () => {
   );
 };
 
-export default Layout;
+export default Layouts;

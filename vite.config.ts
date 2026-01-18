@@ -10,8 +10,8 @@ export default defineConfig({
     basicSsl(),
   ],
   server: {
-    host: true, //  Exposes the server to your local network (192.168.100.11)
-    https: {},  // Enables HTTPS mode required for the Camera API
+    host: true,
+    https: {},
     port: 5173
   }
 })
