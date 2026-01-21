@@ -1,112 +1,138 @@
-import React, { useState } from 'react';
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   ChevronLeft, ChevronRight, Home, 
-  Sun, Moon, Landmark, FileCheck, Settings 
+  Sun, Moon, Landmark, FileCheck, Settings, LogOut,
+  Stethoscope, Activity
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const Layouts: React.FC = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    return (localStorage.getItem('theme') as 'light' | 'dark') || 'light';
+  });
   const location = useLocation();
+  const navigate = useNavigate();
 
-  const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light');
+  // Extract real user data from localStorage
+  const userJson = localStorage.getItem('user');
+  const user = userJson ? JSON.parse(userJson) : { name: 'Medical Staff', role: 'Staff' };
 
-  // Paths updated to match App.tsx nested routes
+  // Sync theme with document root to link Settings.tsx dark mode
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
+
+  const handleLogout = () => {
+    localStorage.clear();
+    toast.success("Signed out successfully");
+    navigate('/login', { replace: true });
+  };
+
   const menuItems = [
-    { icon: <Home size={20} />, label: 'Overview', path: '/hospital' },
-    { icon: <Landmark size={20} />, label: 'Treasurer', path: '/hospital/treasurer' },
-    { icon: <FileCheck size={20} />, label: 'Certificate', path: '/hospital/certificate' },
-    { icon: <Settings size={20} />, label: 'Settings', path: '/hospital/settings' },
+    { icon: <Home size={20} />, label: 'Dashboard', path: '/hospital' },
+    { icon: <Landmark size={20} />, label: 'Billing & Fees', path: '/hospital/treasurer' },
+    { icon: <FileCheck size={20} />, label: 'Certificates', path: '/hospital/certificate' },
+    { icon: <Settings size={20} />, label: 'System Setup', path: '/hospital/settings' },
   ];
 
   const isDark = theme === 'dark';
   const themeClasses = {
-    aside: isDark ? 'bg-slate-950 text-slate-400 border-emerald-900/30' : 'bg-white text-slate-600 border-slate-200 shadow-sm',
+    aside: isDark ? 'bg-slate-950 text-slate-400 border-slate-800' : 'bg-white text-slate-600 border-slate-200 shadow-xl',
     mainBg: isDark ? 'bg-slate-900' : 'bg-slate-50',
-    logo: isDark ? 'text-emerald-400' : 'text-indigo-600',
-    logoDot: isDark ? 'text-white' : 'text-slate-900',
-    button: isDark ? 'bg-slate-900 hover:text-emerald-400 border-slate-800' : 'bg-slate-50 hover:bg-slate-100 text-slate-500 border-slate-200',
-    navActive: isDark ? 'bg-emerald-500/10 text-emerald-400' : 'bg-indigo-50 text-indigo-700',
-    navHover: isDark ? 'hover:bg-emerald-500/10 hover:text-emerald-50' : 'hover:bg-indigo-50 hover:text-indigo-700',
-    iconHover: isDark ? 'group-hover:text-emerald-400' : 'group-hover:text-indigo-600',
-    footer: isDark ? 'border-slate-900' : 'border-slate-100 bg-slate-50/50',
-    profileHover: isDark ? 'hover:bg-slate-900' : 'hover:bg-white hover:shadow-sm hover:border-slate-200',
+    logo: isDark ? 'text-emerald-400' : 'text-blue-600',
+    navActive: isDark ? 'bg-emerald-500/10 text-emerald-400 border-r-4 border-emerald-400' : 'bg-blue-50 text-blue-700 border-r-4 border-blue-600',
+    footer: isDark ? 'bg-slate-900/50' : 'bg-slate-50/80',
     userName: isDark ? 'text-slate-100' : 'text-slate-900',
-    planText: isDark ? 'text-emerald-600' : 'text-slate-500',
   };
 
   return (
     <div className={`flex min-h-screen ${themeClasses.mainBg} transition-colors duration-300`}>
-      {/* SIDEBAR (Left Side) */}
-      <aside 
-        className={`h-screen sticky top-0 flex flex-col transition-all duration-300 border-r ${themeClasses.aside} ${
-          isCollapsed ? 'w-20' : 'w-64'
-        }`}
-      >
+      <aside className={`h-screen sticky top-0 flex flex-col transition-all duration-500 border-r z-20 ${themeClasses.aside} ${isCollapsed ? 'w-20' : 'w-72'}`}>
+        {/* Hospital Branding */}
         <div className="p-6 flex items-center justify-between overflow-hidden">
           {!isCollapsed && (
-            <span className={`font-black text-xl tracking-tighter ${themeClasses.logo}`}>
-              Request Certificate System<span className={themeClasses.logoDot}>.</span>
-            </span>
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-emerald-500 rounded-lg text-white">
+                <Stethoscope size={24} />
+              </div>
+              <span className={`font-bold text-lg leading-tight tracking-tight ${themeClasses.userName}`}>
+                HOSPITAL<span className="text-emerald-500">RCS</span>
+              </span>
+            </div>
           )}
-          <div className="flex gap-2">
-            <button onClick={toggleTheme} className={`p-1.5 rounded-lg border transition-all ${themeClasses.button}`}>
-              {isDark ? <Sun size={18} /> : <Moon size={18} />}
-            </button>
-            <button onClick={() => setIsCollapsed(!isCollapsed)} className={`p-1.5 rounded-lg border transition-all ${themeClasses.button}`}>
-              {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-            </button>
-          </div>
+          <button onClick={() => setIsCollapsed(!isCollapsed)} className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800">
+            {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
+          </button>
         </div>
 
-        <nav className="flex-1 px-3 space-y-1 mt-4">
+        {/* Navigation Menu */}
+        <nav className="flex-1 px-4 mt-6 space-y-2">
           {menuItems.map((item) => {
             const isActive = location.pathname === item.path;
             return (
-              <Link
-                key={item.label}
-                to={item.path}
-                className={`flex items-center gap-4 px-3 py-3 rounded-xl transition-all group ${
-                  isActive ? themeClasses.navActive : themeClasses.navHover
-                }`}
+              <Link 
+                key={item.label} 
+                to={item.path} 
+                className={`flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all font-medium group ${isActive ? themeClasses.navActive : 'hover:bg-slate-100 dark:hover:bg-slate-800/50'}`}
               >
-                <div className={`transition-colors ${isActive ? (isDark ? 'text-emerald-400' : 'text-indigo-600') : 'text-slate-400'} ${themeClasses.iconHover}`}>
+                <div className={`${isActive ? '' : 'text-slate-400 group-hover:text-emerald-500'}`}>
                   {item.icon}
                 </div>
-                {!isCollapsed && (
-                  <span className="text-sm font-semibold whitespace-nowrap">{item.label}</span>
-                )}
+                {!isCollapsed && <span className="whitespace-nowrap">{item.label}</span>}
               </Link>
             );
           })}
         </nav>
 
-        <div className={`p-4 border-t transition-colors ${themeClasses.footer}`}>
-          <div className={`flex items-center gap-3 p-2 rounded-xl cursor-pointer transition-all group border border-transparent ${themeClasses.profileHover}`}>
-            <div className={`w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-500 to-emerald-400 flex-shrink-0 border-2 shadow-sm ${isDark ? 'border-slate-950' : 'border-white'}`} />
+        {/* User Profile & Theme Toggle */}
+        <div className={`p-4 mt-auto border-t border-slate-200 dark:border-slate-800 ${themeClasses.footer}`}>
+          {!isCollapsed && (
+            <div className="flex items-center justify-between mb-4 px-2">
+              <span className="text-xs font-bold uppercase text-slate-400 tracking-widest">Appearance</span>
+              <button onClick={toggleTheme} className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                {isDark ? <Sun size={16} className="text-yellow-500" /> : <Moon size={16} className="text-blue-600" />}
+              </button>
+            </div>
+          )}
+          
+          <div className="flex items-center gap-3 p-2 rounded-2xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 shadow-sm">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500 flex items-center justify-center text-white font-bold shadow-lg shadow-emerald-500/20">
+              {user.name.charAt(0)}
+            </div>
             {!isCollapsed && (
               <div className="flex-1 overflow-hidden">
-                <p className={`text-sm font-bold truncate ${themeClasses.userName}`}>Alex Rivera</p>
-                <p className={`text-xs font-medium truncate ${themeClasses.planText}`}>Pro Plan</p>
+                <p className={`text-sm font-bold truncate ${themeClasses.userName}`}>{user.name}</p>
+                <button onClick={handleLogout} className="flex items-center gap-1 text-[10px] text-rose-500 font-bold hover:underline">
+                  <LogOut size={10} /> SIGN OUT
+                </button>
               </div>
             )}
           </div>
         </div>
       </aside>
 
-      {/* CONTENT AREA (Right Side) */}
       <main className="flex-1 flex flex-col min-w-0">
-        <header className={`h-16 border-b flex items-center px-8 transition-colors ${isDark ? 'bg-slate-950/50 border-slate-800' : 'bg-white border-slate-200'}`}>
-          <h1 className={`font-bold capitalize ${themeClasses.userName}`}>
-            {location.pathname === '/hospital' ? 'Overview' : location.pathname.split('/').pop()}
-          </h1>
+        <header className="h-20 border-b px-10 flex items-center justify-between bg-white/80 dark:bg-slate-950/50 backdrop-blur-md sticky top-0 z-10 border-slate-200 dark:border-slate-800">
+          <div className="flex items-center gap-4">
+            <Activity className="text-emerald-500" size={20} />
+            <h1 className="text-xl font-bold dark:text-white capitalize">
+              {location.pathname.split('/').pop() || 'Medical Overview'}
+            </h1>
+          </div>
         </header>
 
         <div className="flex-1 overflow-y-auto">
-          <div className="max-w-7xl mx-auto">
-            {/* THIS IS THE ROUTE DISPLAY */}
-            <Outlet />
+          <div className="max-w-7xl mx-auto p-10">
+            <Outlet /> {/* Renders SettingsSetup or other content */}
           </div>
         </div>
       </main>

@@ -3,18 +3,27 @@ import { useNavigate } from 'react-router-dom';
 
 // --- TYPES & INTERFACES ---
 interface SubQuestion {
+  id: number;
   question: string;
   type: string;
   answer: string;
 }
 
+interface SubOption {
+  id: number;
+  name: string;
+  check: string; 
+}
+
 interface RequestOption {
+  id: number;
   label: string;
   name: string;
   days: string;
   price: number;
-  subOptions: string[];
+  subOptions: SubOption[]; 
   subQuestion?: SubQuestion[];
+  purpose?: string; // Stores the specific sub-option (purpose) picked
 }
 
 interface UserData {
@@ -44,20 +53,51 @@ function RequestPage() {
   // --- DATA ---
   const [requestOptions, setRequestOptions] = useState<RequestOption[]>([
     { 
+      id: 1,
       label: "Medical Certificate", 
       name: "Medical Certificate", 
       days: "3", 
       price: 100, 
       subOptions: [], 
       subQuestion: [
-        { question: 'Father Name', type: 'text', answer: '' }, 
-        { question: 'Father bday', type: 'date', answer: '' }, 
-        { question: 'Father Citizenship', type: 'text', answer: '' }
+        {id: 1, question: 'Father Name', type: 'text', answer: '' }, 
+        {id: 2, question: 'Father bday', type: 'date', answer: '' }, 
+        {id: 3, question: 'Father Citizenship', type: 'text', answer: '' }
       ] 
     },
-    { label: "Death Certificate", name: "Death Certificate", days: "4", price: 150, subOptions: ["Original Copy", "Certified True Copy"] },
-    { label: "Birth Certificate", name: "Birth Certificate", days: "1", price: 200, subOptions: ["Newborn", "Late Registration"] },
-    { label: "Other Request", name: "Other Request", days: "4", price: 50, subOptions: ["Permit", "Clearance", "Certification"] },
+    {
+      id: 2, 
+      label: "Death Certificate", 
+      name: "Death Certificate", 
+      days: "4", 
+      price: 150, 
+      subOptions: [
+        {id: 1, name: "Original Copy", check: "false"}, 
+        {id: 2, name: "Certified True Copy", check: "false"}
+      ] 
+    },
+    {
+      id: 3, 
+      label: "Birth Certificate", 
+      name: "Birth Certificate", 
+      days: "1", 
+      price: 200, 
+      subOptions: [
+        {id: 1, name: "Original Copy", check: "false"}, 
+        {id: 2, name: "Certified True Copy", check: "false"}
+      ] 
+    },
+    {
+      id: 4, 
+      label: "Other Request", 
+      name: "Other Request", 
+      days: "4", 
+      price: 50, 
+      subOptions: [
+        {id: 1, name: "Original Copy", check: "false"}, 
+        {id: 2, name: "Certified True Copy", check: "false"}
+      ] 
+    },
   ]);
 
   const [requestDateList] = useState<RequestDate[]>([
@@ -98,6 +138,10 @@ function RequestPage() {
   const handleCheckboxChange = (requestName: string) => {
     if (selectedRequests.includes(requestName)) {
       setSelectedRequests(prev => prev.filter(item => item !== requestName));
+      // Reset purpose when unselected
+      setRequestOptions(prev => prev.map(opt => 
+        opt.name === requestName ? { ...opt, purpose: undefined } : opt
+      ));
     } else {
       const request = requestOptions.find(r => r.name === requestName);
       if (!request) return;
@@ -114,7 +158,12 @@ function RequestPage() {
     }
   };
 
-  const handlePurposeSelection = () => {
+  const handlePurposeSelection = (purposeName: string) => {
+    // Store which purpose was picked for the active request
+    setRequestOptions(prev => prev.map(opt => 
+        opt.id === activeRequest?.id ? { ...opt, purpose: purposeName } : opt
+    ));
+
     if (activeRequest?.subQuestion && activeRequest.subQuestion.length > 0) {
       setIsOptionsModalOpen(false);
       setIsQuestionsModalOpen(true);
@@ -150,15 +199,31 @@ function RequestPage() {
     const detailedRequests = selectedRequests.map(name => 
       requestOptions.find(opt => opt.name === name)
     );
-    navigate('/receipt', { 
-      state: { 
-        requests: detailedRequests, 
-        total: totalAmount,
-        paymentMethod: method,
-        requestedDate: selectedDate,
-        userName: user ? `${user.firstname} ${user.lastname}` : "Guest"
-      } 
-    });
+
+        console.log("==================== detailedRequests =================================");
+    console.log(detailedRequests);
+    console.log("==================== totalAmount ======================================");
+    console.log(totalAmount);
+    console.log("==================== paymentMethod ====================================");
+    console.log(method);
+    console.log("==================== requestedDate ====================================");
+    console.log(selectedDate);
+    console.log("==================== userName ====================================");
+    console.log(user ? `${user.firstname} ${user.lastname}` : "Guest");
+    console.log("==================== transactionId ====================================");
+    console.log(`REF-${Math.floor(100000 + Math.random() * 900000)}`);
+    console.log("=======================================================================");
+    
+    // navigate('/receipt', { 
+    //   state: { 
+    //     requests: detailedRequests, 
+    //     total: totalAmount,
+    //     paymentMethod: method,
+    //     requestedDate: selectedDate,
+    //     userName: user ? `${user.firstname} ${user.lastname}` : "Guest",
+    //     transactionId: `REF-${Math.floor(100000 + Math.random() * 900000)}`
+    //   } 
+    // });
   };
 
   return (
@@ -172,11 +237,11 @@ function RequestPage() {
             <div className="space-y-2">
               {activeRequest.subOptions.map((opt) => (
                 <button 
-                  key={opt} 
-                  onClick={handlePurposeSelection} 
+                  key={opt.id} 
+                  onClick={() => handlePurposeSelection(opt.name)} 
                   className="w-full text-left px-4 py-3 border border-gray-200 rounded-lg hover:bg-indigo-50 hover:border-indigo-300 transition-all"
                 >
-                  {opt}
+                  {opt.name}
                 </button>
               ))}
             </div>
@@ -192,9 +257,8 @@ function RequestPage() {
             <h2 className="text-xl font-bold mb-1 text-gray-800">Additional Information</h2>
             <p className="text-sm text-gray-500 mb-6 italic">Required for {activeRequest.label}</p>
             <div className="space-y-4">
-              {/* FIXED: We find the request in the state to get live updates for q.answer */}
               {requestOptions.find(r => r.name === activeRequest.name)?.subQuestion?.map((q, index) => (
-                <div key={index}>
+                <div key={q.id}>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">{q.question}</label>
                   <input 
                     type={q.type} 
@@ -239,7 +303,7 @@ function RequestPage() {
         </div>
       )}
 
-      {/* 4. Payment Selection Modal */}
+      {/* 4. Payment Selection Modal - DESIGN PRESERVED */}
       {isSubmitModalOpen && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4 backdrop-blur-md">
           <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-8 text-center animate-in fade-in duration-300">
@@ -269,7 +333,7 @@ function RequestPage() {
         <div className="grid grid-cols-1 gap-4">
           {requestOptions.map((option) => (
             <div
-              key={option.name}
+              key={option.id}
               onClick={() => handleCheckboxChange(option.name)}
               className={`p-5 rounded-2xl border-2 transition-all duration-300 cursor-pointer flex items-center justify-between
                 ${selectedRequests.includes(option.name) ? 'border-indigo-600 bg-white shadow-xl shadow-indigo-100' : 'border-white bg-white/60 hover:border-indigo-100'}
@@ -278,6 +342,10 @@ function RequestPage() {
               <div>
                 <span className={`text-lg font-bold block ${selectedRequests.includes(option.name) ? 'text-indigo-700' : 'text-gray-700'}`}>{option.label}</span>
                 <span className="text-sm font-semibold text-indigo-500">₱{option.price.toFixed(2)}</span>
+                {/* Visual feedback of the choice picked */}
+                {selectedRequests.includes(option.name) && option.purpose && (
+                   <span className="text-[10px] uppercase font-black text-indigo-400 block mt-1 italic tracking-widest">{option.purpose}</span>
+                )}
               </div>
               <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all ${selectedRequests.includes(option.name) ? 'bg-indigo-600 border-indigo-600 scale-110' : 'bg-white border-gray-200'}`}>
                 {selectedRequests.includes(option.name) && <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" /></svg>}

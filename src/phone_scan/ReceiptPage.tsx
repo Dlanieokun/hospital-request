@@ -11,11 +11,12 @@ function ReceiptPage() {
     total = 0, 
     userName = "Guest", 
     timestamp = new Date().toLocaleString(),
-    paymentMethod = "Clerk" 
+    paymentMethod = "Clerk",
+    transactionId = ""
   } = location.state || {};
 
   // Generate a random Transaction ID
-  const transactionId = `TXN-${Math.floor(100000 + Math.random() * 900000)}`;
+  // const transactionId = `TXN-${Math.floor(100000 + Math.random() * 900000)}`;
 
   const handleDone = () => {
     sessionStorage.removeItem("qrCodeDataJson");

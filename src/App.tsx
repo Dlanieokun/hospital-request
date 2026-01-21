@@ -1,27 +1,33 @@
-import { Route, Routes } from 'react-router-dom' // Ensure you use 'react-router-dom'
-import ScanQR from './phone_scan/ScanQR'
-import RequestPage from './phone_scan/RequestPage'
-import ReceiptPage from './phone_scan/ReceiptPage'
+import { Route, Routes, Navigate } from 'react-router-dom'
+import { ProtectedRoute, PublicRoute } from './components/RouteGuards'
+import Layouts from './web/Layout'
+import Login from './web/auth/Login'
+import Register from './web/auth/Register'
 import SettingsSetup from './web/Settings'
 import Treasurer from './web/Treasurer'
-import Layouts from './web/Layout'
+import Overview from './web/auth/Overview'
 
 function App() {
   return (
     <Routes>
-      {/* Standalone Mobile Routes */}
-      <Route path='/scanner' element={<ScanQR />}/>
-      <Route path='/request' element={<RequestPage />}/>
-      <Route path="/receipt" element={<ReceiptPage />} />
-
-      {/* Hospital Dashboard with Nested Routes */}
-      <Route path="/hospital" element={<Layouts />}>
-        {/* These will render inside the <Outlet /> in Layout.tsx */}
-        <Route index element={<div>Overview Content</div>} />
-        <Route path="treasurer" element={<Treasurer />} />
-        <Route path="certificate" element={<div>Certificate Content</div>} />
-        <Route path="settings" element={<SettingsSetup />} />
+      {/* AUTH ROUTES: Only accessible if logged out */}
+      <Route element={<PublicRoute />}>
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
       </Route>
+
+      {/* SECURE ROUTES: Only accessible if logged in */}
+      <Route element={<ProtectedRoute />}>
+        <Route path="/hospital" element={<Layouts />}>
+          <Route index element={<Overview />} />
+          <Route path="treasurer" element={<Treasurer />} />
+          <Route path="certificate" element={<div>Certificate Content</div>} />
+          <Route path="settings" element={<SettingsSetup />} />
+        </Route>
+      </Route>
+
+      {/* Default Redirect */}
+      <Route path="/" element={<Navigate to="/hospital" replace />} />
     </Routes>
   )
 }
