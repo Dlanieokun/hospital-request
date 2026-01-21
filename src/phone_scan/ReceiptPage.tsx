@@ -1,22 +1,26 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { QRCodeCanvas } from 'qrcode.react';
 
+// Specific interface for the data sent from RequestPage
+interface ReceiptItem {
+  label: string;
+  price: number;
+  purpose?: string;
+}
+
 function ReceiptPage() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Extract data from RequestPage state
+  // Extract data with fallbacks
   const { 
-    requests = [], 
+    requests = [] as ReceiptItem[], 
     total = 0, 
     userName = "Guest", 
     timestamp = new Date().toLocaleString(),
     paymentMethod = "Clerk",
     transactionId = ""
   } = location.state || {};
-
-  // Generate a random Transaction ID
-  // const transactionId = `TXN-${Math.floor(100000 + Math.random() * 900000)}`;
 
   const handleDone = () => {
     sessionStorage.removeItem("qrCodeDataJson");
@@ -49,11 +53,13 @@ function ReceiptPage() {
         {/* Breakdown */}
         <div className="p-8 pb-4">
           <div className="space-y-4">
-            {requests.map((item: any, index: number) => (
+            {requests.map((item: ReceiptItem, index: number) => (
               <div key={index} className="flex justify-between items-center">
                 <div>
                   <p className="font-bold text-gray-800">{item.label}</p>
-                  <p className="text-[10px] text-gray-400 uppercase font-bold tracking-tighter">Certified Service</p>
+                  <p className="text-[10px] text-gray-400 uppercase font-bold tracking-tighter">
+                    {item.purpose || "Certified Service"}
+                  </p>
                 </div>
                 <span className="font-semibold text-gray-700">₱{item.price.toFixed(2)}</span>
               </div>
@@ -81,7 +87,7 @@ function ReceiptPage() {
         <div className="flex flex-col items-center justify-center p-6 bg-white border-t border-gray-50">
           <div className="p-2 border-2 border-dashed border-gray-200 rounded-xl">
             <QRCodeCanvas 
-              value={transactionId} 
+              value={transactionId || "N/A"} 
               size={130}
               level={"H"} 
               includeMargin={true}
