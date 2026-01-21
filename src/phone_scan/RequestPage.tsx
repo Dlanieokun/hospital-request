@@ -199,31 +199,16 @@ function RequestPage() {
     const detailedRequests = selectedRequests.map(name => 
       requestOptions.find(opt => opt.name === name)
     );
-
-        console.log("==================== detailedRequests =================================");
-    console.log(detailedRequests);
-    console.log("==================== totalAmount ======================================");
-    console.log(totalAmount);
-    console.log("==================== paymentMethod ====================================");
-    console.log(method);
-    console.log("==================== requestedDate ====================================");
-    console.log(selectedDate);
-    console.log("==================== userName ====================================");
-    console.log(user ? `${user.firstname} ${user.lastname}` : "Guest");
-    console.log("==================== transactionId ====================================");
-    console.log(`REF-${Math.floor(100000 + Math.random() * 900000)}`);
-    console.log("=======================================================================");
-    
-    // navigate('/receipt', { 
-    //   state: { 
-    //     requests: detailedRequests, 
-    //     total: totalAmount,
-    //     paymentMethod: method,
-    //     requestedDate: selectedDate,
-    //     userName: user ? `${user.firstname} ${user.lastname}` : "Guest",
-    //     transactionId: `REF-${Math.floor(100000 + Math.random() * 900000)}`
-    //   } 
-    // });
+    navigate('/receipt', { 
+      state: { 
+        requests: detailedRequests, 
+        total: totalAmount,
+        paymentMethod: method,
+        requestedDate: selectedDate,
+        userName: user ? `${user.firstname} ${user.lastname}` : "Guest",
+        transactionId: `REF-${Math.floor(100000 + Math.random() * 900000)}`
+      } 
+    });
   };
 
   return (

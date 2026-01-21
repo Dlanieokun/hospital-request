@@ -6,6 +6,9 @@ import Register from './web/auth/Register'
 import SettingsSetup from './web/Settings'
 import Treasurer from './web/Treasurer'
 import Overview from './web/auth/Overview'
+import ScanQR from './phone_scan/ScanQR'
+import RequestPage from './phone_scan/RequestPage'
+import ReceiptPage from './phone_scan/ReceiptPage'
 
 function App() {
   return (
@@ -14,6 +17,9 @@ function App() {
       <Route element={<PublicRoute />}>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/scanner" element={<ScanQR />} />
+        <Route path="/request" element={<RequestPage />} />
+        <Route path="/receipt" element={<ReceiptPage />} />
       </Route>
 
       {/* SECURE ROUTES: Only accessible if logged in */}
