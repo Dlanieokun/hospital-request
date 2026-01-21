@@ -15,15 +15,15 @@ interface SubOption {
   check: string; 
 }
 
+// Updated Interface to use snake_case for sub_options and sub_questions
 interface RequestOption {
   id: number;
-  label: string;
   name: string;
   days: string;
-  price: number;
-  subOptions: SubOption[]; 
-  subQuestion?: SubQuestion[];
-  purpose?: string; // Stores the specific sub-option (purpose) picked
+  fee: number; 
+  sub_options: SubOption[]; 
+  sub_questions?: SubQuestion[];
+  purpose?: string; 
 }
 
 interface UserData {
@@ -50,68 +50,36 @@ function RequestPage() {
   
   const [selectedDate, setSelectedDate] = useState<string>("");
 
-  // --- DATA ---
-  const [requestOptions, setRequestOptions] = useState<RequestOption[]>([
-    { 
-      id: 1,
-      label: "Medical Certificate", 
-      name: "Medical Certificate", 
-      days: "3", 
-      price: 100, 
-      subOptions: [], 
-      subQuestion: [
-        {id: 1, question: 'Father Name', type: 'text', answer: '' }, 
-        {id: 2, question: 'Father bday', type: 'date', answer: '' }, 
-        {id: 3, question: 'Father Citizenship', type: 'text', answer: '' }
-      ] 
-    },
-    {
-      id: 2, 
-      label: "Death Certificate", 
-      name: "Death Certificate", 
-      days: "4", 
-      price: 150, 
-      subOptions: [
-        {id: 1, name: "Original Copy", check: "false"}, 
-        {id: 2, name: "Certified True Copy", check: "false"}
-      ] 
-    },
-    {
-      id: 3, 
-      label: "Birth Certificate", 
-      name: "Birth Certificate", 
-      days: "1", 
-      price: 200, 
-      subOptions: [
-        {id: 1, name: "Original Copy", check: "false"}, 
-        {id: 2, name: "Certified True Copy", check: "false"}
-      ] 
-    },
-    {
-      id: 4, 
-      label: "Other Request", 
-      name: "Other Request", 
-      days: "4", 
-      price: 50, 
-      subOptions: [
-        {id: 1, name: "Original Copy", check: "false"}, 
-        {id: 2, name: "Certified True Copy", check: "false"}
-      ] 
-    },
-  ]);
+  // --- API DATA STATE ---
+  const [requestOptions, setRequestOptions] = useState<RequestOption[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [requestDateList] = useState<RequestDate[]>([
     { date: "01/23/2024" },
     { date: "04/03/2024" },
   ]);
 
-  // --- LOGIC ---
-  const totalAmount = selectedRequests.reduce((sum, requestName) => {
-    const item = requestOptions.find(r => r.name === requestName);
-    return sum + (item ? item.price : 0);
-  }, 0);
-
+  // --- FETCH DATA FROM API ---
   useEffect(() => {
+    const fetchRequests = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch("http://127.0.0.1:8000/api/request");
+        if (!response.ok) {
+          throw new Error("Failed to fetch requests from server");
+        }
+        const data = await response.json();
+        setRequestOptions(data);
+      } catch (err: any) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRequests();
+
     const storedUser = sessionStorage.getItem("qrCodeDataJson");
     if (storedUser) {
       try {
@@ -122,13 +90,19 @@ function RequestPage() {
     }
   }, []);
 
+  // --- LOGIC ---
+  const totalAmount = selectedRequests.reduce((sum, requestName) => {
+    const item = requestOptions.find(r => r.name === requestName);
+    return sum + (item ? item.fee : 0);
+  }, 0);
+
   const handleAnswerChange = (requestName: string, questionIndex: number, value: string) => {
     setRequestOptions(prevOptions => 
       prevOptions.map(opt => {
         if (opt.name === requestName) {
-          const newQuestions = [...(opt.subQuestion || [])];
+          const newQuestions = [...(opt.sub_questions || [])];
           newQuestions[questionIndex] = { ...newQuestions[questionIndex], answer: value };
-          return { ...opt, subQuestion: newQuestions };
+          return { ...opt, sub_questions: newQuestions };
         }
         return opt;
       })
@@ -138,7 +112,6 @@ function RequestPage() {
   const handleCheckboxChange = (requestName: string) => {
     if (selectedRequests.includes(requestName)) {
       setSelectedRequests(prev => prev.filter(item => item !== requestName));
-      // Reset purpose when unselected
       setRequestOptions(prev => prev.map(opt => 
         opt.name === requestName ? { ...opt, purpose: undefined } : opt
       ));
@@ -148,9 +121,9 @@ function RequestPage() {
 
       setActiveRequest(request);
 
-      if (request.subOptions && request.subOptions.length > 0) {
+      if (request.sub_options && request.sub_options.length > 0) {
         setIsOptionsModalOpen(true);
-      } else if (request.subQuestion && request.subQuestion.length > 0) {
+      } else if (request.sub_questions && request.sub_questions.length > 0) {
         setIsQuestionsModalOpen(true);
       } else {
         addRequest(request.name);
@@ -159,12 +132,11 @@ function RequestPage() {
   };
 
   const handlePurposeSelection = (purposeName: string) => {
-    // Store which purpose was picked for the active request
     setRequestOptions(prev => prev.map(opt => 
         opt.id === activeRequest?.id ? { ...opt, purpose: purposeName } : opt
     ));
 
-    if (activeRequest?.subQuestion && activeRequest.subQuestion.length > 0) {
+    if (activeRequest?.sub_questions && activeRequest.sub_questions.length > 0) {
       setIsOptionsModalOpen(false);
       setIsQuestionsModalOpen(true);
     } else if (activeRequest) {
@@ -211,6 +183,9 @@ function RequestPage() {
     });
   };
 
+  if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  if (error) return <div className="flex items-center justify-center min-h-screen text-red-500">Error: {error}</div>;
+
   return (
     <div className="relative min-h-screen flex flex-col items-center justify-center p-4 bg-slate-50">
       
@@ -218,9 +193,9 @@ function RequestPage() {
       {isOptionsModalOpen && activeRequest && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 animate-in zoom-in duration-200">
-            <h2 className="text-xl font-bold mb-4 text-gray-800">Purpose for {activeRequest.label}</h2>
+            <h2 className="text-xl font-bold mb-4 text-gray-800">Purpose for {activeRequest.name}</h2>
             <div className="space-y-2">
-              {activeRequest.subOptions.map((opt) => (
+              {activeRequest.sub_options.map((opt) => (
                 <button 
                   key={opt.id} 
                   onClick={() => handlePurposeSelection(opt.name)} 
@@ -240,9 +215,9 @@ function RequestPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 animate-in zoom-in duration-200">
             <h2 className="text-xl font-bold mb-1 text-gray-800">Additional Information</h2>
-            <p className="text-sm text-gray-500 mb-6 italic">Required for {activeRequest.label}</p>
+            <p className="text-sm text-gray-500 mb-6 italic">Required for {activeRequest.name}</p>
             <div className="space-y-4">
-              {requestOptions.find(r => r.name === activeRequest.name)?.subQuestion?.map((q, index) => (
+              {requestOptions.find(r => r.name === activeRequest.name)?.sub_questions?.map((q, index) => (
                 <div key={q.id}>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">{q.question}</label>
                   <input 
@@ -256,7 +231,7 @@ function RequestPage() {
             </div>
             <div className="flex gap-3 mt-8">
               <button 
-                onClick={() => { setIsQuestionsModalOpen(false); if (activeRequest.subOptions.length > 0) setIsOptionsModalOpen(true); }} 
+                onClick={() => { setIsQuestionsModalOpen(false); if (activeRequest.sub_options.length > 0) setIsOptionsModalOpen(true); }} 
                 className="flex-1 px-4 py-3 text-gray-500 bg-gray-100 rounded-xl font-bold hover:bg-gray-200 transition"
               >
                 Back
@@ -288,7 +263,7 @@ function RequestPage() {
         </div>
       )}
 
-      {/* 4. Payment Selection Modal - DESIGN PRESERVED */}
+      {/* 4. Payment Selection Modal */}
       {isSubmitModalOpen && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4 backdrop-blur-md">
           <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-8 text-center animate-in fade-in duration-300">
@@ -307,12 +282,10 @@ function RequestPage() {
         </div>
       )}
 
-      {/* Header Info */}
       <div className="absolute top-0 right-0 p-6 text-gray-500 italic text-sm">
         Logged in as: <span className="font-bold text-gray-800">{user ? `${user.firstname} ${user.lastname}` : "Guest"}</span>
       </div>
 
-      {/* Main List */}
       <div className="w-full max-w-xl">
         <h1 className="text-3xl font-black mb-8 text-gray-900 text-center uppercase tracking-tighter">Document Request Center</h1>
         <div className="grid grid-cols-1 gap-4">
@@ -325,9 +298,8 @@ function RequestPage() {
               `}
             >
               <div>
-                <span className={`text-lg font-bold block ${selectedRequests.includes(option.name) ? 'text-indigo-700' : 'text-gray-700'}`}>{option.label}</span>
-                <span className="text-sm font-semibold text-indigo-500">₱{option.price.toFixed(2)}</span>
-                {/* Visual feedback of the choice picked */}
+                <span className={`text-lg font-bold block ${selectedRequests.includes(option.name) ? 'text-indigo-700' : 'text-gray-700'}`}>{option.name}</span>
+                <span className="text-sm font-semibold text-indigo-500">₱{option.fee.toFixed(2)}</span>
                 {selectedRequests.includes(option.name) && option.purpose && (
                    <span className="text-[10px] uppercase font-black text-indigo-400 block mt-1 italic tracking-widest">{option.purpose}</span>
                 )}
