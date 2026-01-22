@@ -2,6 +2,8 @@ import { useEffect, useState, type ChangeEvent } from "react";
 import { useNavigate } from 'react-router-dom';
 
 // --- TYPES & INTERFACES ---
+type Time = string; // Define Time as a string (e.g., "08:00 AM")
+
 interface SubQuestion {
   id: number;
   question: string;
@@ -33,6 +35,7 @@ interface UserData {
 
 interface RequestDate {
   date: Date;
+  time: Time; // Updated interface
 }
 
 function RequestPage() {
@@ -48,7 +51,8 @@ function RequestPage() {
   const [isDateModalOpen, setIsDateModalOpen] = useState<boolean>(false);
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState<boolean>(false);
 
-  const [selectedDate, setSelectedDate] = useState<string>("");
+  const [selectedDate, setSelectedDate] = useState<string>([]);
+  const [selectedTimeDate, setSelectedTimeDate] = useState<string>("");
 
   const [requestOptions, setRequestOptions] = useState<RequestOption[]>([]);
   const [requestDateList, setRequestDateList] = useState<RequestDate[]>([]);
@@ -94,9 +98,13 @@ function RequestPage() {
       const response = await fetch(`http://127.0.0.1:8000/api/patient_date/${user.patient_id}`);
       if (!response.ok) throw new Error("Failed to fetch available dates");
       const data = await response.json();
-      const formattedDates: RequestDate[] = data.map((item: { date: string }) => ({
-        date: new Date(item.date)
+      
+      // Updated Mapping to include time
+      const formattedDates: RequestDate[] = data.map((item: { date: string, time: string }) => ({
+        date: new Date(item.date),
+        time: item.time
       }));
+      
       setRequestDateList(formattedDates);
       setIsDateModalOpen(true);
     } catch (err) {
@@ -167,8 +175,10 @@ function RequestPage() {
     setActiveRequest(null);
   };
 
-  const handleDateSelection = (date: Date) => {
-    setSelectedDate(date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }));
+  const handleDateSelection = (item: RequestDate) => {
+    const dateFormatted = item.date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    setSelectedDate(`${dateFormatted} at ${item.time}`);
+    setSelectedTimeDate(item);
     setIsDateModalOpen(false);
     setIsSubmitModalOpen(true);
   };
@@ -180,35 +190,34 @@ function RequestPage() {
 
   const navigateToReceipt = async (method: string) => {
     try {
-      // Data Transformation to match ReceiptPage expectations
       const detailedRequests = selectedRequests
-        .map(name => {
-          const opt = requestOptions.find(o => o.name === name);
-          if (!opt) return null;
-          return {
-            id: opt.id,
-            label: opt.name,
-            price: opt.fee,
-            purpose: opt.purpose,
-            sub_option: opt.sub_options,
-            sub_question: opt.sub_questions
-          };
-        })
-        .filter((item) => item !== null);
+  .map(name => {
+    const opt = requestOptions.find(o => o.name === name);
+    if (!opt) return null;
+
+    const filteredSubOptions = Array.isArray(opt.sub_options)
+      ? opt.sub_options.filter(sub => sub.name === opt.purpose)
+      : [];
+
+    return {
+      id: opt.id,
+      label: opt.name,
+      price: opt.fee,
+      purpose: opt.purpose,
+      sub_option: filteredSubOptions,
+      sub_question: opt.sub_questions
+    };
+  });
+
 
       const transactionId = `REF-${Math.floor(100000 + Math.random() * 900000)}`;
-      console.log(requestOptions);
-      console.log("===========================================");
-      console.log(selectedRequests);
-      console.log("===========================================");
-      console.log(detailedRequests);
-
 
       const sendData = {
         requests: detailedRequests,
         total: totalAmount,
         paymentMethod: method,
         requestedDate: selectedDate,
+        arrival: selectedTimeDate,
         userName: user ? `${user.firstname} ${user.lastname}` : "Guest",
         p_id: user ? `${user.patient_id}` : "None",
         transactionId: transactionId,
@@ -221,7 +230,7 @@ function RequestPage() {
       });
 
       if (!response.ok) throw new Error("Failed to store receipt");
-      navigate("/receipt", { state: sendData });
+      // navigate("/receipt", { state: sendData });
     } catch (error) {
       alert("Error processing payment.");
     }
@@ -286,20 +295,26 @@ function RequestPage() {
         </div>
       )}
 
-      {/* 3. Date Modal */}
+      {/* 3. Date & Time Modal */}
       {isDateModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
-            <h2 className="text-xl font-bold mb-4 text-gray-800">Select Available Date</h2>
+            <h2 className="text-xl font-bold mb-4 text-gray-800">Select Available Date Admitted</h2>
             <div className="space-y-2 max-h-[300px] overflow-y-auto">
               {requestDateList.length > 0 ? (
                 requestDateList.map((item, index) => (
                   <button 
                     key={index} 
-                    onClick={() => handleDateSelection(item.date)} 
+                    onClick={() => handleDateSelection(item)} 
                     className="w-full text-left px-4 py-3 border border-gray-200 rounded-lg hover:bg-indigo-50 hover:border-indigo-300 transition-all flex justify-between items-center"
                   >
-                    <span className="font-medium text-gray-700">{item.date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
+                    <div>
+                        <p className="font-medium text-gray-700">
+                            {item.date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                        </p>
+                        <p className="text-sm text-indigo-600 font-bold">{item.time}</p>
+                    </div>
+                    <svg className="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
                   </button>
                 ))
               ) : (
@@ -320,7 +335,7 @@ function RequestPage() {
               <p className="text-sm text-gray-500 uppercase font-semibold tracking-wider">Total Amount</p>
               <p className="text-3xl font-black text-indigo-600">₱{totalAmount.toFixed(2)}</p>
             </div>
-            <p className="text-xs text-gray-400 mb-6 italic">Scheduled Date: {selectedDate}</p>
+            <p className="text-xs text-gray-400 mb-6 italic">Schedule: {selectedDate}</p>
             <div className="flex flex-col gap-3">
               <button onClick={() => navigateToReceipt("Online")} className="w-full py-4 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition">Pay Online</button>
               <button onClick={() => navigateToReceipt("Clerk")} className="w-full py-4 bg-white border-2 border-gray-200 text-gray-700 font-bold rounded-xl hover:border-gray-300 transition">Pay in Clerk</button>
