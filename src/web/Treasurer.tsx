@@ -5,6 +5,7 @@ interface CollectionItem {
   id: number;
   reference: string;
   name: string;
+  mode: string; // Added Mode property
   paid: number;
   status: string;
   created_at: string | null;
@@ -34,7 +35,6 @@ const Treasurer: React.FC = () => {
       const response = await fetch('http://127.0.0.1:8000/api/receipts', { headers: getHeaders() });
       if (response.ok) {
         const data = await response.json();
-        // Handle both direct arrays and paginated data objects
         setCollections(Array.isArray(data) ? data : data.data || []);
       }
     } catch (error) {
@@ -86,7 +86,6 @@ const Treasurer: React.FC = () => {
       return;
     }
 
-    // Optional: Add a small confirmation delay or auto-confirm
     await handlePayment(targetItem.id);
   };
 
@@ -95,10 +94,10 @@ const Treasurer: React.FC = () => {
     const scannedValue = scanInputRef.current?.value.trim() || "";
     
     if (scannedValue) {
-      setIsScannerModalOpen(false); // Close modal on scan
-      setSearchTerm(scannedValue);  // Filter table to show the scanned item
+      setIsScannerModalOpen(false);
+      setSearchTerm(scannedValue);
       await processAutoPayment(scannedValue);
-      if (scanInputRef.current) scanInputRef.current.value = ""; // Reset input
+      if (scanInputRef.current) scanInputRef.current.value = "";
     }
   };
 
@@ -106,7 +105,6 @@ const Treasurer: React.FC = () => {
     fetchCollections();
   }, []);
 
-  // Maintain focus on the hidden input when scanner modal is open
   useEffect(() => {
     if (isScannerModalOpen) {
       const timer = setTimeout(() => scanInputRef.current?.focus(), 100);
@@ -177,6 +175,7 @@ const Treasurer: React.FC = () => {
               <tr>
                 <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Reference</th>
                 <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Name</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Mode</th>
                 <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Amount</th>
                 <th className="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
@@ -184,7 +183,7 @@ const Treasurer: React.FC = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {loading ? (
                 <tr>
-                  <td colSpan={4} className="text-center py-12 text-gray-400">
+                  <td colSpan={5} className="text-center py-12 text-gray-400">
                     <Loader2 className="animate-spin mx-auto mb-2" /> 
                     Loading records...
                   </td>
@@ -194,6 +193,14 @@ const Treasurer: React.FC = () => {
                   <tr key={item.id} className="hover:bg-gray-50/50 transition-colors">
                     <td className="px-6 py-4 text-sm font-mono font-semibold text-blue-700">{item.reference}</td>
                     <td className="px-6 py-4 text-sm text-gray-700 capitalize font-medium">{item.name}</td>
+                    
+                    {/* Mode Column Styling */}
+                    <td className="px-6 py-4 text-sm">
+                        <span className="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border border-blue-100">
+                            {item.mode || 'N/A'}
+                        </span>
+                    </td>
+
                     <td className="px-6 py-4 text-sm text-gray-900 font-bold">₱{item.paid.toLocaleString()}</td>
                     <td className="px-6 py-4 text-center text-sm">
                       <button 
@@ -220,7 +227,7 @@ const Treasurer: React.FC = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={4} className="text-center py-12 text-gray-400 italic">No records found.</td>
+                  <td colSpan={5} className="text-center py-12 text-gray-400 italic">No records found.</td>
                 </tr>
               )}
             </tbody>

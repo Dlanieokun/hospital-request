@@ -18,8 +18,11 @@ const Layouts: React.FC = () => {
   // Extract real user data from localStorage
   const userJson = localStorage.getItem('user');
   const user = userJson ? JSON.parse(userJson) : { name: 'Medical Staff', role: 'Staff' };
+  
+  // Normalize role for comparison (e.g., "Administrator" becomes "administrator")
+  const userRole = user.role?.toLowerCase() || '';
 
-  // Sync theme with document root to link Settings.tsx dark mode
+  // Sync theme with document root
   useEffect(() => {
     if (theme === 'dark') {
       document.documentElement.classList.add('dark');
@@ -37,12 +40,38 @@ const Layouts: React.FC = () => {
     navigate('/login', { replace: true });
   };
 
+  // Define menu items with associated allowed roles
   const menuItems = [
-    { icon: <Home size={20} />, label: 'Dashboard', path: '/hospital' },
-    { icon: <Landmark size={20} />, label: 'Billing & Fees', path: '/hospital/treasurer' },
-    { icon: <FileCheck size={20} />, label: 'Certificates', path: '/hospital/certificate' },
-    { icon: <Settings size={20} />, label: 'System Setup', path: '/hospital/settings' },
+    { 
+      icon: <Home size={20} />, 
+      label: 'Dashboard', 
+      path: '/hospital',
+      allowedRoles: ['administrator', 'medical staff', 'treasurer'] 
+    },
+    { 
+      icon: <Landmark size={20} />, 
+      label: 'Billing & Fees', 
+      path: '/hospital/treasurer',
+      allowedRoles: ['administrator', 'treasurer'] 
+    },
+    { 
+      icon: <FileCheck size={20} />, 
+      label: 'Certificates', 
+      path: '/hospital/certificate',
+      allowedRoles: ['administrator', 'medical staff'] 
+    },
+    { 
+      icon: <Settings size={20} />, 
+      label: 'System Setup', 
+      path: '/hospital/settings',
+      allowedRoles: ['administrator'] 
+    },
   ];
+
+  // Filter items based on user role
+  const filteredMenuItems = menuItems.filter(item => 
+    item.allowedRoles.includes(userRole)
+  );
 
   const isDark = theme === 'dark';
   const themeClasses = {
@@ -74,9 +103,9 @@ const Layouts: React.FC = () => {
           </button>
         </div>
 
-        {/* Navigation Menu */}
+        {/* Navigation Menu (Filtered by Role) */}
         <nav className="flex-1 px-4 mt-6 space-y-2">
-          {menuItems.map((item) => {
+          {filteredMenuItems.map((item) => {
             const isActive = location.pathname === item.path;
             return (
               <Link 
@@ -132,7 +161,7 @@ const Layouts: React.FC = () => {
 
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-7xl mx-auto p-10">
-            <Outlet /> {/* Renders SettingsSetup or other content */}
+            <Outlet />
           </div>
         </div>
       </main>
