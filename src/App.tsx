@@ -9,6 +9,7 @@ import Overview from './web/auth/Overview'
 import ScanQR from './phone_scan/ScanQR'
 import RequestPage from './phone_scan/RequestPage'
 import ReceiptPage from './phone_scan/ReceiptPage'
+import CertificateRequest from './web/CertificateRequest'
 
 function App() {
   return (
@@ -27,7 +28,7 @@ function App() {
         <Route path="/hospital" element={<Layouts />}>
           <Route index element={<Overview />} />
           <Route path="treasurer" element={<Treasurer />} />
-          <Route path="certificate" element={<div>Certificate Content</div>} />
+          <Route path="certificate" element={<CertificateRequest />} />
           <Route path="settings" element={<SettingsSetup />} />
         </Route>
       </Route>

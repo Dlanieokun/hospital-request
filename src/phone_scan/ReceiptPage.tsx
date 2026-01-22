@@ -1,5 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { QRCodeCanvas } from 'qrcode.react';
+import { User } from 'lucide-react';
 
 // Specific interface for the data sent from RequestPage
 interface ReceiptItem {
@@ -19,7 +20,8 @@ function ReceiptPage() {
     userName = "Guest", 
     timestamp = new Date().toLocaleString(),
     paymentMethod = "Clerk",
-    transactionId = ""
+    transactionId = "",
+    p_id = "",
   } = location.state || {};
 
   const handleDone = () => {
@@ -30,6 +32,40 @@ function ReceiptPage() {
   const handlePrint = () => {
     window.print();
   };
+const handlePayNow = async () => {
+  try {
+    const pay = {
+      amount: total,
+      codeId: 1,
+      fullname: userName,
+      reference_code: p_id,
+    };
+
+    const response = await fetch(
+      "https://apps.leyteprovince.gov.ph/online-payment-api/public/api/v1/payments",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(pay),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Payment request failed");
+    }
+
+    // console.log("Payment response:", data.data.checkout_url);
+    // window.location.href = data.data.checkout_url;
+  } catch (error) {
+    console.error("Payment error:", error);
+  }
+};
+
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4">
@@ -108,6 +144,17 @@ function ReceiptPage() {
 
       {/* Actions */}
       <div className="mt-8 flex flex-col sm:flex-row gap-4 w-full max-w-md print:hidden">
+        
+        {/* CONDITIONAL PAY NOW BUTTON */}
+        {paymentMethod === "Online" && (
+          <button 
+            onClick={handlePayNow}
+            className="flex-1 px-6 py-4 bg-emerald-600 text-white font-bold rounded-2xl shadow-xl hover:bg-emerald-700 transition shadow-emerald-200"
+          >
+            Pay Now
+          </button>
+        )}
+
         <button 
           onClick={handlePrint}
           className="flex-1 px-6 py-4 bg-white border-2 border-gray-200 text-gray-700 font-bold rounded-2xl hover:bg-gray-50 transition"

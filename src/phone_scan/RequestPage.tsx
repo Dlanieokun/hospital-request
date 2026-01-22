@@ -186,14 +186,23 @@ function RequestPage() {
           const opt = requestOptions.find(o => o.name === name);
           if (!opt) return null;
           return {
+            id: opt.id,
             label: opt.name,
             price: opt.fee,
-            purpose: opt.purpose
+            purpose: opt.purpose,
+            sub_option: opt.sub_options,
+            sub_question: opt.sub_questions
           };
         })
         .filter((item) => item !== null);
 
       const transactionId = `REF-${Math.floor(100000 + Math.random() * 900000)}`;
+      console.log(requestOptions);
+      console.log("===========================================");
+      console.log(selectedRequests);
+      console.log("===========================================");
+      console.log(detailedRequests);
+
 
       const sendData = {
         requests: detailedRequests,
@@ -201,6 +210,7 @@ function RequestPage() {
         paymentMethod: method,
         requestedDate: selectedDate,
         userName: user ? `${user.firstname} ${user.lastname}` : "Guest",
+        p_id: user ? `${user.patient_id}` : "None",
         transactionId: transactionId,
       };
 
