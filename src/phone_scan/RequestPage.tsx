@@ -1,8 +1,11 @@
 import { useEffect, useState, type ChangeEvent } from "react";
 import { useNavigate } from 'react-router-dom';
 
+// --- CONFIGURATION ---
+const API_BASE_URL = "http://127.0.0.1:8000/api";
+
 // --- TYPES & INTERFACES ---
-type Time = string; // Define Time as a string (e.g., "08:00 AM")
+type Time = string;
 
 interface SubQuestion {
   id: number;
@@ -35,7 +38,7 @@ interface UserData {
 
 interface RequestDate {
   date: Date;
-  time: Time; // Updated interface
+  time: Time;
 }
 
 function RequestPage() {
@@ -44,16 +47,13 @@ function RequestPage() {
   // --- STATE ---
   const [user, setUser] = useState<UserData | null>(null);
   const [selectedRequests, setSelectedRequests] = useState<string[]>([]);
-
   const [isOptionsModalOpen, setIsOptionsModalOpen] = useState<boolean>(false);
   const [activeRequest, setActiveRequest] = useState<RequestOption | null>(null);
   const [isQuestionsModalOpen, setIsQuestionsModalOpen] = useState<boolean>(false);
   const [isDateModalOpen, setIsDateModalOpen] = useState<boolean>(false);
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState<boolean>(false);
-
-  const [selectedDate, setSelectedDate] = useState<string>([]);
-  const [selectedTimeDate, setSelectedTimeDate] = useState<string>("");
-
+  const [selectedDate, setSelectedDate] = useState<string>("");
+  const [selectedTimeDate, setSelectedTimeDate] = useState<RequestDate | null>(null);
   const [requestOptions, setRequestOptions] = useState<RequestOption[]>([]);
   const [requestDateList, setRequestDateList] = useState<RequestDate[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -64,7 +64,8 @@ function RequestPage() {
     const fetchRequests = async () => {
       try {
         setLoading(true);
-        const response = await fetch("http://127.0.0.1:8000/api/request");
+        // Updated to use constant
+        const response = await fetch(`${API_BASE_URL}/request`);
         if (!response.ok) throw new Error("Failed to fetch requests");
         const data: RequestOption[] = await response.json();
         setRequestOptions(data);
@@ -95,11 +96,11 @@ function RequestPage() {
 
     try {
       setIsFetchingDates(true);
-      const response = await fetch(`http://127.0.0.1:8000/api/patient_date/${user.patient_id}`);
+      // Updated to use constant
+      const response = await fetch(`${API_BASE_URL}/patient_date/${user.patient_id}`);
       if (!response.ok) throw new Error("Failed to fetch available dates");
       const data = await response.json();
       
-      // Updated Mapping to include time
       const formattedDates: RequestDate[] = data.map((item: { date: string, time: string }) => ({
         date: new Date(item.date),
         time: item.time
@@ -190,28 +191,23 @@ function RequestPage() {
 
   const navigateToReceipt = async (method: string) => {
     try {
-      const detailedRequests = selectedRequests
-  .map(name => {
-    const opt = requestOptions.find(o => o.name === name);
-    if (!opt) return null;
-
-    const filteredSubOptions = Array.isArray(opt.sub_options)
-      ? opt.sub_options.filter(sub => sub.name === opt.purpose)
-      : [];
-
-    return {
-      id: opt.id,
-      label: opt.name,
-      price: opt.fee,
-      purpose: opt.purpose,
-      sub_option: filteredSubOptions,
-      sub_question: opt.sub_questions
-    };
-  });
-
+      const detailedRequests = selectedRequests.map(name => {
+        const opt = requestOptions.find(o => o.name === name);
+        if (!opt) return null;
+        const filteredSubOptions = Array.isArray(opt.sub_options)
+          ? opt.sub_options.filter(sub => sub.name === opt.purpose)
+          : [];
+        return {
+          id: opt.id,
+          label: opt.name,
+          price: opt.fee,
+          purpose: opt.purpose,
+          sub_option: filteredSubOptions,
+          sub_question: opt.sub_questions
+        };
+      });
 
       const transactionId = `REF-${Math.floor(100000 + Math.random() * 900000)}`;
-
       const sendData = {
         requests: detailedRequests,
         total: totalAmount,
@@ -223,14 +219,15 @@ function RequestPage() {
         transactionId: transactionId,
       };
 
-      const response = await fetch("http://127.0.0.1:8000/api/receipt_store", {
+      // Updated to use constant
+      const response = await fetch(`${API_BASE_URL}/receipt_store`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Accept": "application/json" },
         body: JSON.stringify(sendData),
       });
 
       if (!response.ok) throw new Error("Failed to store receipt");
-      // navigate("/receipt", { state: sendData });
+      navigate("/receipt", { state: sendData });
     } catch (error) {
       alert("Error processing payment.");
     }

@@ -60,7 +60,7 @@ const handlePayNow = async () => {
     }
 
     // console.log("Payment response:", data.data.checkout_url);
-    // window.location.href = data.data.checkout_url;
+    window.location.href = data.data.checkout_url;
   } catch (error) {
     console.error("Payment error:", error);
   }
@@ -75,7 +75,7 @@ const handlePayNow = async () => {
         
         {/* Header */}
         <div className="p-6 text-center border-b border-dashed border-gray-200">
-          <h1 className="text-2xl font-black text-gray-800 uppercase tracking-widest">Official Receipt</h1>
+          <h1 className="text-2xl font-black text-gray-800 uppercase tracking-widest">Temporary Receipt</h1>
           <p className="text-gray-400 text-[10px] mt-1 italic uppercase tracking-widest">ID: {transactionId}</p>
           <p className="text-gray-500 text-sm mt-1">{timestamp}</p>
         </div>
