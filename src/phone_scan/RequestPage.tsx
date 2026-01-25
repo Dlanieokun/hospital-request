@@ -28,6 +28,7 @@ interface RequestOption {
   sub_options: SubOption[];
   sub_questions?: SubQuestion[];
   purpose?: string;
+  copies: number; 
 }
 
 interface UserData {
@@ -59,16 +60,24 @@ function RequestPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [isFetchingDates, setIsFetchingDates] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // New state for legal certification
+  const [hasAgreedToTerms, setHasAgreedToTerms] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchRequests = async () => {
       try {
         setLoading(true);
-        // Updated to use constant
         const response = await fetch(`${API_BASE_URL}/request`);
         if (!response.ok) throw new Error("Failed to fetch requests");
         const data: RequestOption[] = await response.json();
-        setRequestOptions(data);
+        
+        const initializedData = data.map(item => ({
+            ...item,
+            copies: 1
+        }));
+        
+        setRequestOptions(initializedData);
       } catch (err) {
         setError(err instanceof Error ? err.message : "An unknown error occurred");
       } finally {
@@ -88,6 +97,16 @@ function RequestPage() {
     }
   }, []);
 
+  const handleCopyChange = (id: number, delta: number) => {
+    setRequestOptions(prev => prev.map(opt => {
+      if (opt.id === id) {
+        const newCount = Math.max(1, opt.copies + delta);
+        return { ...opt, copies: newCount };
+      }
+      return opt;
+    }));
+  };
+
   const handleProceed = async () => {
     if (!user?.patient_id) {
       alert("No patient ID found. Please scan again.");
@@ -96,7 +115,6 @@ function RequestPage() {
 
     try {
       setIsFetchingDates(true);
-      // Updated to use constant
       const response = await fetch(`${API_BASE_URL}/patient_date/${user.patient_id}`);
       if (!response.ok) throw new Error("Failed to fetch available dates");
       const data = await response.json();
@@ -117,7 +135,7 @@ function RequestPage() {
 
   const totalAmount = selectedRequests.reduce((sum, name) => {
     const item = requestOptions.find(r => r.name === name);
-    return sum + (item ? item.fee : 0);
+    return sum + (item ? (item.fee * item.copies) : 0);
   }, 0);
 
   const handleAnswerChange = (requestName: string, questionIndex: number, value: string) => {
@@ -173,6 +191,7 @@ function RequestPage() {
   const confirmQuestions = () => {
     if (activeRequest) addRequest(activeRequest.name);
     setIsQuestionsModalOpen(false);
+    setHasAgreedToTerms(false); // Reset for next use
     setActiveRequest(null);
   };
 
@@ -201,6 +220,7 @@ function RequestPage() {
           id: opt.id,
           label: opt.name,
           price: opt.fee,
+          copies: opt.copies, 
           purpose: opt.purpose,
           sub_option: filteredSubOptions,
           sub_question: opt.sub_questions
@@ -219,7 +239,6 @@ function RequestPage() {
         transactionId: transactionId,
       };
 
-      // Updated to use constant
       const response = await fetch(`${API_BASE_URL}/receipt_store`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Accept": "application/json" },
@@ -233,7 +252,7 @@ function RequestPage() {
     }
   };
 
-  if (loading) return <div className="flex items-center justify-center min-h-screen">Loading Options...</div>;
+  if (loading) return <div className="flex items-center justify-center min-h-screen font-bold text-indigo-600">Loading Options...</div>;
   if (error) return <div className="flex items-center justify-center min-h-screen text-red-500">Error: {error}</div>;
 
   return (
@@ -266,7 +285,7 @@ function RequestPage() {
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
             <h2 className="text-xl font-bold mb-1 text-gray-800">Additional Information</h2>
             <p className="text-sm text-gray-500 mb-6 italic">Required for {activeRequest.name}</p>
-            <div className="space-y-4">
+            <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-2">
               {activeRequest.sub_questions?.map((q, index) => (
                 <div key={q.id}>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">{q.question}</label>
@@ -279,14 +298,40 @@ function RequestPage() {
                 </div>
               ))}
             </div>
-            <div className="flex gap-3 mt-8">
+
+            {/* Certification Note & Checkbox */}
+            <div className="mt-6 p-4 bg-amber-50 border border-amber-100 rounded-xl">
+              <label className="flex gap-3 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={hasAgreedToTerms}
+                  onChange={(e) => setHasAgreedToTerms(e.target.checked)}
+                  className="mt-1 w-4 h-4 rounded border-amber-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <span className="text-[11px] leading-tight text-amber-900 font-medium">
+                  The user certifies that all electronically submitted data is accurate and correct. I understand that any false information may void this request.
+                </span>
+              </label>
+            </div>
+
+            <div className="flex gap-3 mt-6">
               <button 
-                onClick={() => { setIsQuestionsModalOpen(false); if (activeRequest.sub_options.length > 0) setIsOptionsModalOpen(true); }} 
+                onClick={() => { 
+                    setIsQuestionsModalOpen(false); 
+                    setHasAgreedToTerms(false);
+                    if (activeRequest.sub_options.length > 0) setIsOptionsModalOpen(true); 
+                }} 
                 className="flex-1 px-4 py-3 text-gray-500 bg-gray-100 rounded-xl font-bold hover:bg-gray-200 transition"
               >
                 Back
               </button>
-              <button onClick={confirmQuestions} className="flex-1 px-4 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition">Continue</button>
+              <button 
+                onClick={confirmQuestions} 
+                disabled={!hasAgreedToTerms}
+                className="flex-1 px-4 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Continue
+              </button>
             </div>
           </div>
         </div>
@@ -334,8 +379,8 @@ function RequestPage() {
             </div>
             <p className="text-xs text-gray-400 mb-6 italic">Schedule: {selectedDate}</p>
             <div className="flex flex-col gap-3">
-              <button onClick={() => navigateToReceipt("Online")} className="w-full py-4 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition">Pay Online</button>
-              <button onClick={() => navigateToReceipt("Clerk")} className="w-full py-4 bg-white border-2 border-gray-200 text-gray-700 font-bold rounded-xl hover:border-gray-300 transition">Pay in Clerk</button>
+              <button onClick={() => navigateToReceipt("Online")} className="w-full py-4 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition">Online Payment</button>
+              <button onClick={() => navigateToReceipt("Clerk")} className="w-full py-4 bg-white border-2 border-gray-200 text-gray-700 font-bold rounded-xl hover:border-gray-300 transition">Over the Counter</button>
             </div>
             <button onClick={() => setIsSubmitModalOpen(false)} className="mt-6 text-sm text-gray-400 hover:text-gray-600">Go Back</button>
           </div>
@@ -358,13 +403,38 @@ function RequestPage() {
                 ${selectedRequests.includes(option.name) ? 'border-indigo-600 bg-white shadow-xl shadow-indigo-100' : 'border-white bg-white/60 hover:border-indigo-100'}
               `}
             >
-              <div>
+              <div className="flex-1">
                 <span className={`text-lg font-bold block ${selectedRequests.includes(option.name) ? 'text-indigo-700' : 'text-gray-700'}`}>{option.name}</span>
-                <span className="text-sm font-semibold text-indigo-500">₱{option.fee.toFixed(2)}</span>
+                <span className="text-sm font-semibold text-indigo-500">₱{option.fee.toFixed(2)} / copy</span>
                 {selectedRequests.includes(option.name) && option.purpose && (
                    <span className="text-[10px] uppercase font-black text-indigo-400 block mt-1 italic tracking-widest">{option.purpose}</span>
                 )}
               </div>
+
+              {selectedRequests.includes(option.name) && (
+                <div 
+                    className="flex items-center gap-3 bg-gray-100 p-1.5 rounded-xl mr-4" 
+                    onClick={(e) => e.stopPropagation()} 
+                >
+                    <button 
+                        onClick={() => handleCopyChange(option.id, -1)}
+                        className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm font-bold text-gray-600 hover:bg-red-50 hover:text-red-600 transition"
+                    >
+                        -
+                    </button>
+                    <div className="flex flex-col items-center min-w-[30px]">
+                        <span className="text-[10px] text-gray-400 font-bold uppercase leading-none">Qty</span>
+                        <span className="font-black text-indigo-600 leading-none">{option.copies}</span>
+                    </div>
+                    <button 
+                        onClick={() => handleCopyChange(option.id, 1)}
+                        className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm font-bold text-gray-600 hover:bg-green-50 hover:text-green-600 transition"
+                    >
+                        +
+                    </button>
+                </div>
+              )}
+
               <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all ${selectedRequests.includes(option.name) ? 'bg-indigo-600 border-indigo-600 scale-110' : 'bg-white border-gray-200'}`}>
                 {selectedRequests.includes(option.name) && <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" /></svg>}
               </div>

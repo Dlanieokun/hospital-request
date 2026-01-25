@@ -1,11 +1,11 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { QRCodeCanvas } from 'qrcode.react';
-import { User } from 'lucide-react';
 
-// Specific interface for the data sent from RequestPage
+// Updated interface to include copies and optional subtotal tracking
 interface ReceiptItem {
   label: string;
   price: number;
+  copies: number; // Added to match data from RequestPage
   purpose?: string;
 }
 
@@ -32,40 +32,39 @@ function ReceiptPage() {
   const handlePrint = () => {
     window.print();
   };
-const handlePayNow = async () => {
-  try {
-    const pay = {
-      amount: total,
-      codeId: 1,
-      fullname: userName,
-      reference_code: p_id,
-    };
 
-    const response = await fetch(
-      "https://apps.leyteprovince.gov.ph/online-payment-api/public/api/v1/payments",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify(pay),
+  const handlePayNow = async () => {
+    try {
+      const pay = {
+        amount: total,
+        codeId: 1,
+        fullname: userName,
+        reference_code: p_id,
+      };
+
+      const response = await fetch(
+        "https://apps.leyteprovince.gov.ph/online-payment-api/public/api/v1/payments",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify(pay),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Payment request failed");
       }
-    );
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.message || "Payment request failed");
+      window.location.href = data.data.checkout_url;
+    } catch (error) {
+      console.error("Payment error:", error);
     }
-
-    // console.log("Payment response:", data.data.checkout_url);
-    window.location.href = data.data.checkout_url;
-  } catch (error) {
-    console.error("Payment error:", error);
-  }
-};
-
+  };
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4">
@@ -82,22 +81,32 @@ const handlePayNow = async () => {
 
         {/* Info */}
         <div className="px-8 py-4 bg-gray-50 flex justify-between items-center text-sm border-b border-gray-100">
-          <span className="text-gray-500 font-medium">Customer:</span>
+          <span className="text-gray-500 font-medium">Patient :</span>
           <span className="text-gray-900 font-black uppercase">{userName}</span>
         </div>
 
         {/* Breakdown */}
         <div className="p-8 pb-4">
-          <div className="space-y-4">
+          <div className="space-y-6">
             {requests.map((item: ReceiptItem, index: number) => (
-              <div key={index} className="flex justify-between items-center">
-                <div>
-                  <p className="font-bold text-gray-800">{item.label}</p>
+              <div key={index} className="flex justify-between items-start">
+                <div className="flex-1">
+                  <p className="font-bold text-gray-800 leading-tight">
+                    {item.label} 
+                    <span className="ml-2 text-indigo-600 font-black">x{item.copies}</span>
+                  </p>
                   <p className="text-[10px] text-gray-400 uppercase font-bold tracking-tighter">
                     {item.purpose || "Certified Service"}
                   </p>
+                  <p className="text-[10px] text-gray-400 italic">
+                    Unit Price: ₱{item.price.toFixed(2)}
+                  </p>
                 </div>
-                <span className="font-semibold text-gray-700">₱{item.price.toFixed(2)}</span>
+                <div className="text-right">
+                  <span className="font-bold text-gray-700">
+                    ₱{(item.price * item.copies).toFixed(2)}
+                  </span>
+                </div>
               </div>
             ))}
           </div>
@@ -113,7 +122,7 @@ const handlePayNow = async () => {
               </span>
             </div>
             <div className="flex justify-between items-center pt-2">
-              <span className="text-xl font-bold text-gray-800 tracking-tighter">TOTAL PAID</span>
+              <span className="text-xl font-bold text-gray-800 tracking-tighter uppercase">Total Amount</span>
               <span className="text-2xl font-black text-indigo-600">₱{total.toFixed(2)}</span>
             </div>
           </div>
@@ -145,7 +154,6 @@ const handlePayNow = async () => {
       {/* Actions */}
       <div className="mt-8 flex flex-col sm:flex-row gap-4 w-full max-w-md print:hidden">
         
-        {/* CONDITIONAL PAY NOW BUTTON */}
         {paymentMethod === "Online" && (
           <button 
             onClick={handlePayNow}
@@ -165,7 +173,7 @@ const handlePayNow = async () => {
           onClick={handleDone}
           className="flex-1 px-6 py-4 bg-indigo-600 text-white font-bold rounded-2xl shadow-xl hover:bg-indigo-700 transition shadow-indigo-200"
         >
-          Finish Transaction
+          Finish
         </button>
       </div>
     </div>

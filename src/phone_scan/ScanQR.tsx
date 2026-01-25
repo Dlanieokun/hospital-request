@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import jsQR from 'jsqr'; 
-// 🛑 IMPORT THE NAVIGATION HOOK
 import { useNavigate } from 'react-router'; 
 
 // ====================================================================
@@ -33,6 +32,9 @@ const ScannerComponent: React.FunctionComponent<ScannerProps> = ({ onScanComplet
     const [status, setStatus] = useState<string>("Initializing camera...");
     const [hasCameraError, setHasCameraError] = useState<boolean>(false);
     const [isReading, setIsReading] = useState<boolean>(false); 
+    
+    // 📸 NEW: State to track camera facing mode
+    const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
 
     const decodeFrame = useCallback((ctx: CanvasRenderingContext2D, width: number, height: number): string | null => {
         try {
@@ -43,9 +45,7 @@ const ScannerComponent: React.FunctionComponent<ScannerProps> = ({ onScanComplet
                 imageData.height,
                 { inversionAttempts: 'attemptBoth' } 
             );
-            if (code) {
-                return code.data; 
-            }
+            if (code) return code.data; 
         } catch (e) {
             console.error("Error during image data retrieval or decoding:", e);
         }
@@ -79,6 +79,11 @@ const ScannerComponent: React.FunctionComponent<ScannerProps> = ({ onScanComplet
             }
         }
     }, [decodeFrame, onScanComplete]);
+
+    // 🔄 NEW: Toggle Camera Function
+    const toggleCamera = () => {
+        setFacingMode(prev => prev === "environment" ? "user" : "environment");
+    };
     
     useEffect(() => {
         const video = videoRef.current;
@@ -88,12 +93,11 @@ const ScannerComponent: React.FunctionComponent<ScannerProps> = ({ onScanComplet
         const startScanning = () => {
             if (video) {
                 video.play().then(() => {
-                    setStatus("Camera active. Scanning for QR Code...");
+                    setStatus(`Camera active (${facingMode}). Scanning...`);
                     animationFrameId = requestAnimationFrame(tick);
                 }).catch((playErr) => {
                     console.error("Video play error:", playErr);
                     setHasCameraError(true);
-                    setStatus("Failed to start video playback. Check browser console for details.");
                     onScanComplete({ data: null, error: "Playback failed." });
                 });
             }
@@ -102,17 +106,16 @@ const ScannerComponent: React.FunctionComponent<ScannerProps> = ({ onScanComplet
         const startCamera = async () => {
             if (!video) return;
 
-            // Check if the browser supports mediaDevices
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                 setHasCameraError(true);
                 setStatus("Camera API not available. Ensure you are using HTTPS.");
-                onScanComplete({ data: null, error: "MediaDevices API missing (Insecure context?)" });
                 return;
             }
 
             try {
+                // Constraints now use the facingMode state
                 stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: "environment" } 
+                    video: { facingMode: facingMode } 
                 });
                 video.srcObject = stream;
                 video.addEventListener('loadedmetadata', startScanning);
@@ -120,7 +123,6 @@ const ScannerComponent: React.FunctionComponent<ScannerProps> = ({ onScanComplet
                 console.error("Camera access error:", err);
                 setHasCameraError(true);
                 setStatus("Camera access denied or failed.");
-                onScanComplete({ data: null, error: "Camera access denied." });
             }
         };
 
@@ -132,40 +134,53 @@ const ScannerComponent: React.FunctionComponent<ScannerProps> = ({ onScanComplet
                 cancelAnimationFrame(animationFrameId);
                 if (stream) {
                     stream.getTracks().forEach(track => track.stop());
-                } else if (video.srcObject) {
-                    (video.srcObject as MediaStream).getTracks().forEach(track => track.stop());
                 }
             }
         };
-    }, [onScanComplete, tick]);
+        // Dependency array now includes facingMode to trigger restart on switch
+    }, [onScanComplete, tick, facingMode]);
 
 
     return (
         <div className="relative w-full max-w-xl mx-auto p-4 bg-white rounded-xl shadow-2xl">
             <h2 className="text-2xl font-bold text-center text-indigo-700 mb-4">Live QR Scanner</h2>
+            
             <div className="relative w-full aspect-square bg-black rounded-lg overflow-hidden">
                 <video 
                     ref={videoRef} 
-                    className={`w-full h-full object-cover ${hasCameraError ? 'hidden' : ''}`}
+                    className={`w-full h-full object-cover ${hasCameraError ? 'hidden' : ''} ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`}
                     playsInline 
                     muted 
                 />
                 <canvas ref={canvasRef} className="hidden" />
 
+                {/* Overlay UI */}
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                     <div className="relative w-3/4 h-3/4 border-4 border-dashed border-yellow-400 rounded-lg">
                         <div 
                             className={`absolute inset-0 top-1/2 left-0 right-0 h-1 transition-colors duration-200 
                                      ${isReading ? 'bg-green-500' : 'bg-yellow-400'} 
                                      ${!isReading && 'animate-scanner-line'}`}
-                            style={{ boxShadow: isReading ? '0 0 10px 2px #34D399' : '0 0 8px 1px #FBBF24' }}
                         ></div>
                     </div>
                 </div>
+
+                {/* Switch Camera Button Overlay */}
+                {!hasCameraError && (
+                    <button 
+                        onClick={toggleCamera}
+                        className="absolute bottom-4 right-4 bg-white/20 hover:bg-white/40 backdrop-blur-md p-3 rounded-full border border-white/50 transition"
+                        title="Switch Camera"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 7v6h-6"/><path d="M3 17V11h6"/><path d="M14 4.4a9 9 0 0 1 5.4 4.6M10 19.6A9 9 0 0 1 4.6 15"/>
+                        </svg>
+                    </button>
+                )}
                 
                 {hasCameraError && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-red-900 bg-opacity-80 text-white p-4">
-                        <p className="font-semibold text-center text-lg">{status}</p>
+                    <div className="absolute inset-0 flex items-center justify-center bg-red-900 bg-opacity-80 text-white p-4 text-center">
+                        <p className="font-semibold">{status}</p>
                     </div>
                 )}
             </div>
@@ -181,7 +196,6 @@ const ScannerComponent: React.FunctionComponent<ScannerProps> = ({ onScanComplet
                 Close Scanner
             </button>
 
-            {/* Custom CSS for Animation */}
             <style>{`
                 @keyframes scanner-line-anim {
                     0% { transform: translateY(-100%); opacity: 0.8; }
@@ -196,33 +210,21 @@ const ScannerComponent: React.FunctionComponent<ScannerProps> = ({ onScanComplet
     );
 };
 
-// ====================================================================
-// ScanQR Component: Wrapper, Result Display, and Navigation
-// ====================================================================
-
-/**
- * ScanQR is the root component that manages the scanning state, displays results, and handles navigation.
- */
+// ... Rest of the ScanQR component remains the same ...
 const ScanQR: React.FunctionComponent = () => {
     const [isScanning, setIsScanning] = useState<boolean>(false);
     const [status, setStatus] = useState<string>("Ready to scan.");
-    
-    // Initialize useNavigate hook
     const navigate = useNavigate();
-
-    // Key to use for sessionStorage
     const sessionKey = 'qrCodeDataJson';
     
-    // State initialization: Check sessionStorage instead of localStorage
     const [scanResult, setScanResult] = useState<ScanResult | null>(() => {
         const rawData = sessionStorage.getItem(sessionKey);
         if (rawData) {
             try {
                 const parsedJson = JSON.parse(rawData);
-                const formattedJson = JSON.stringify(parsedJson, null, 2);
-                return { data: formattedJson, error: null };
+                return { data: JSON.stringify(parsedJson, null, 2), error: null };
             } catch (e) {
-                return { data: null, error: "Failed to load previous JSON scan from session storage." };
+                return { data: null, error: "Failed to load previous JSON scan." };
             }
         }
         return null;
@@ -236,41 +238,19 @@ const ScanQR: React.FunctionComponent = () => {
 
     const handleScanComplete = (result: ScanResult): void => {
         setIsScanning(false);
-        
-        let finalResult = result;
-        
         if (result.data) {
             try {
-                // 1. Attempt to parse the data as JSON
-                JSON.parse(result.data); // Just to validate it's JSON
-                
-                // 2. SAVE to SESSION STORAGE
+                JSON.parse(result.data);
                 sessionStorage.setItem(sessionKey, result.data); 
-                
-                // 3. Navigate immediately to the request page
                 navigate('/request'); 
-                
-                // We won't update scanResult state here since we navigate away immediately.
                 return;
-                
             } catch (e) {
-                // Handle non-JSON data or parsing errors
-                const parseError = `Data Found, but JSON Parsing Failed. Raw Data: ${result.data.substring(0, 50)}...`;
-                finalResult = { data: null, error: parseError };
+                setScanResult({ data: null, error: "Data found, but JSON parsing failed." });
             }
         }
-        
-        // Only update state if the scan failed or data was invalid, staying on the current page
-        setScanResult(finalResult);
-        setStatus(finalResult.data ? "Scan complete!" : "Ready to scan.");
     };
     
-    const handleCloseScanner = (): void => {
-        setIsScanning(false);
-        setStatus(scanResult ? "Last scan successful. Ready to scan." : "Ready to scan.");
-    };
-    
-    // --- Conditional Rendering ---
+    const handleCloseScanner = (): void => setIsScanning(false);
     
     if (isScanning) {
         return (
@@ -282,34 +262,15 @@ const ScanQR: React.FunctionComponent = () => {
 
     return (
         <div className="flex h-screen w-screen items-center justify-center bg-gray-50 flex-col p-4">
-
-            {/* Result Display Card (Only visible if the initial check or a failed scan leaves data in state) */}
             {scanResult && (
                 <div className={`p-6 rounded-xl shadow-xl mb-8 w-full max-w-md ${scanResult.data ? 'bg-green-100 border-green-400' : 'bg-red-100 border-red-400'} border-2`}>
                     <h3 className="text-xl font-bold mb-2">Last Scan Result</h3>
-                    {scanResult.data ? (
-                        <>
-                            <p className="text-green-700 font-semibold">✅ Loaded from Session Storage.</p>
-                            <div className="mt-3">
-                                <p className="text-gray-600 mb-1 font-medium">Parsed JSON Object:</p>
-                                <code className="block mt-1 p-3 bg-white rounded break-words text-sm border whitespace-pre-wrap shadow-inner">
-                                    {scanResult.data}
-                                </code>
-                            </div>
-                            <div className="mt-4 p-3 bg-gray-200 rounded text-sm border border-gray-300">
-                                <p className="font-semibold text-gray-700 mb-1">Session Storage Confirmation (Key: `{sessionKey}`):</p>
-                                <code className="block bg-gray-50 p-2 rounded text-xs break-words whitespace-pre-wrap">
-                                    {sessionStorage.getItem(sessionKey) || "Error: Data not found in session storage."}
-                                </code>
-                            </div>
-                        </>
-                    ) : (
-                        <p className="text-red-700 font-semibold">❌ Scan Failed: {scanResult.error}</p>
-                    )}
+                    <code className="block mt-1 p-3 bg-white rounded break-words text-sm border whitespace-pre-wrap">
+                        {scanResult.data || scanResult.error}
+                    </code>
                 </div>
             )}
 
-            {/* Tap to Enter Button */}
             <button 
                 onClick={handleTap}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 px-8 rounded-xl shadow-lg text-2xl transition transform hover:scale-105"
