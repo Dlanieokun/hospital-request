@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 
 // --- Types & Interfaces ---
 interface SubQuestion {
@@ -40,6 +40,13 @@ const CertificateRequest = () => {
   const [processingId, setProcessingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // --- Search, Filter & Pagination State ---
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showPending, setShowPending] = useState(true);
+  const [showReleased, setShowReleased] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
   // Helper for Authorization Headers
   const getHeaders = () => ({
     'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
@@ -80,15 +87,14 @@ const CertificateRequest = () => {
       });
 
       if (response.ok) {
-        // Correctly update the list and the selected modal view
-        const now = new Date().toISOString();
+        const now = new Date().toLocaleString();
         const updatedData = data.map(req =>
             req.id === requestId ? { ...req, status_request: 'release', release_date:  now} : req
         );
         setData(updatedData);
         
         if (selectedRequest?.id === requestId) {
-            setSelectedRequest(prev => prev ? { ...prev, status_request: 'release'} : null);
+            setSelectedRequest(prev => prev ? { ...prev, status_request: 'release', release_date: now} : null);
         }
       } else {
           alert("Failed to update status. Please try again.");
@@ -104,14 +110,37 @@ const CertificateRequest = () => {
     fetchRequests();
   }, []);
 
+  // Reset pagination to page 1 when search or filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, showPending, showReleased]);
+
+  // --- Filtering & Pagination Logic ---
+  const filteredData = useMemo(() => {
+    return data.filter((item) => {
+      const matchesSearch = 
+        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.reference.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const isReleased = item.status_request === 'release';
+      const matchesStatus = (isReleased && showReleased) || (!isReleased && showPending);
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [data, searchQuery, showPending, showReleased]);
+
+  const paginatedData = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredData.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredData, currentPage]);
+
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+
   const formatDateTime = (isoString: string | null) => {
     if (!isoString) return "N/A";
     return new Date(isoString).toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
+      month: 'short', day: 'numeric', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
     });
   };
 
@@ -132,13 +161,51 @@ const CertificateRequest = () => {
             </h1>
             <p className="text-slate-500 font-medium mt-1 ml-11">Document Issuance & Request Tracker</p>
           </div>
-          <div className="text-right">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Active Queue</p>
-            <p className="text-xl font-black text-blue-600">{data.length} Requests</p>
+          <div className="text-right mt-4 md:mt-0">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Active Requests</p>
+            <p className="text-xl font-black text-blue-600">{filteredData.length} Found</p>
           </div>
         </div>
 
-        {/* Error State */}
+        {/* Controls: Search and Filters */}
+        <div className="flex flex-col md:flex-row gap-4 mb-6 items-center">
+          <div className="relative flex-1 w-full">
+            <input 
+              type="text"
+              placeholder="Search by name or reference..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-4 pr-10 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all shadow-sm"
+            />
+            <div className="absolute right-3 top-3.5 text-slate-400">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+          </div>
+
+          <div className="flex gap-4 bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
+            <label className="flex items-center gap-2 px-3 py-1 cursor-pointer hover:bg-slate-50 rounded-lg transition-colors">
+              <input 
+                type="checkbox" 
+                checked={showPending} 
+                onChange={() => setShowPending(!showPending)}
+                className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+              />
+              <span className="text-sm font-bold text-slate-600">Pending</span>
+            </label>
+            <label className="flex items-center gap-2 px-3 py-1 cursor-pointer hover:bg-slate-50 rounded-lg transition-colors">
+              <input 
+                type="checkbox" 
+                checked={showReleased} 
+                onChange={() => setShowReleased(!showReleased)}
+                className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500"
+              />
+              <span className="text-sm font-bold text-slate-600">Released</span>
+            </label>
+          </div>
+        </div>
+
         {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-600 rounded-xl text-sm font-medium">
                 {error}
@@ -163,8 +230,8 @@ const CertificateRequest = () => {
                 <tr>
                   <td colSpan={6} className="px-6 py-10 text-center text-gray-400 italic">Updating records...</td>
                 </tr>
-              ) : data.length > 0 ? (
-                data.map((req) => (
+              ) : paginatedData.length > 0 ? (
+                paginatedData.map((req) => (
                   <tr key={req.id} className="hover:bg-blue-50/30 transition-all">
                     <td className="px-6 py-5">
                       <div className="flex items-center gap-3">
@@ -211,7 +278,7 @@ const CertificateRequest = () => {
                       )}
                     </td>
 
-                    <td className="px-6 py-5">
+                    <td className="px-6 py-5 text-center">
                       <div className="flex justify-center items-center gap-3">
                         <button 
                           onClick={() => setSelectedRequest(req)}
@@ -239,11 +306,55 @@ const CertificateRequest = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} className="px-6 py-10 text-center text-gray-400 italic">No records found.</td>
+                  <td colSpan={6} className="px-6 py-10 text-center text-gray-400 italic">No records found matching your filters.</td>
                 </tr>
               )}
             </tbody>
           </table>
+          
+          {/* Pagination Controls */}
+          <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p className="text-xs font-bold text-slate-500">
+              Showing page <span className="text-blue-600">{currentPage}</span> of {totalPages || 1}
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                disabled={currentPage === 1 || totalPages === 0}
+                onClick={() => setCurrentPage(prev => prev - 1)}
+                className="p-2 rounded-lg border border-slate-200 hover:bg-white text-slate-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              
+              <div className="flex items-center gap-1">
+                {[...Array(totalPages)].map((_, idx) => (
+                  <button
+                    key={idx + 1}
+                    onClick={() => setCurrentPage(idx + 1)}
+                    className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${
+                      currentPage === idx + 1 
+                      ? 'bg-blue-600 text-white shadow-md' 
+                      : 'hover:bg-white text-slate-500'
+                    }`}
+                  >
+                    {idx + 1}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                disabled={currentPage === totalPages || totalPages === 0}
+                onClick={() => setCurrentPage(prev => prev + 1)}
+                className="p-2 rounded-lg border border-slate-200 hover:bg-white text-slate-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -266,9 +377,16 @@ const CertificateRequest = () => {
             </div>
 
             <div className="p-8 overflow-y-auto bg-white">
-              <div className="mb-8">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Patient Name</label>
-                <p className="text-xl font-bold text-slate-800 uppercase">{selectedRequest.name}</p>
+              <div className="mb-8 flex justify-between items-start">
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Patient Name</label>
+                  <p className="text-xl font-bold text-slate-800 uppercase">{selectedRequest.name}</p>
+                </div>
+                {selectedRequest.status_request === 'release' && (
+                  <div className="px-3 py-1 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-full text-[10px] font-black">
+                    RELEASED ON {selectedRequest.release_date}
+                  </div>
+                )}
               </div>
 
               <div className="space-y-6">
@@ -303,7 +421,7 @@ const CertificateRequest = () => {
                 onClick={() => setSelectedRequest(null)} 
                 className="px-6 py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:bg-slate-200"
               >
-                Cancel
+                Close
               </button>
               {selectedRequest.status_request !== 'release' && (
                 <button 
@@ -311,7 +429,7 @@ const CertificateRequest = () => {
                   onClick={() => handleRelease(selectedRequest.id)}
                   className={`bg-blue-600 text-white px-8 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all ${processingId === selectedRequest.id ? 'opacity-50' : ''}`}
                 >
-                  {processingId === selectedRequest.id ? 'Updating...' : 'Approve & Print'}
+                  {processingId === selectedRequest.id ? 'Updating...' : 'Approve & Release'}
                 </button>
               )}
             </div>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Plus, Edit2, Trash2, X, Settings as SettingsIcon, 
-  Users, FileText, UserPlus, AlertTriangle
+  Users, FileText, UserPlus, AlertTriangle, Search, ChevronLeft, ChevronRight
 } from 'lucide-react';
 
 // --- Interfaces ---
@@ -40,9 +40,15 @@ interface DeleteTarget {
   item: Certificate | Staff;
 }
 
+const ITEMS_PER_PAGE = 5;
+
 const SettingsSetup = () => {
   const [activeTab, setActiveTab] = useState<'certificates' | 'staff'>('certificates');
   const [loading, setLoading] = useState(true);
+  
+  // --- SEARCH & PAGINATION STATES ---
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
 
   // --- DATA STATES ---
   const [certificates, setCertificates] = useState<Certificate[]>([]);
@@ -88,6 +94,32 @@ const SettingsSetup = () => {
   };
 
   useEffect(() => { fetchSettings(); }, []);
+
+  // Reset pagination when switching tabs or typing in search
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchTerm]);
+
+  // --- FILTERING & PAGINATION LOGIC ---
+  const getFilteredData = () => {
+    if (activeTab === 'certificates') {
+      return certificates.filter(c => 
+        c.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    return staffList.filter(s => 
+      s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      s.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.role.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  };
+
+  const filteredData = getFilteredData();
+  const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE);
+  const paginatedData = filteredData.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   // --- ACTIONS ---
 
@@ -155,8 +187,6 @@ const SettingsSetup = () => {
     } catch (error) { console.error("Delete failed:", error); }
   };
 
-  // --- MODAL TRIGGERS ---
-
   const openCertModal = (cert?: Certificate) => {
     setIsEditMode(!!cert);
     if (cert) {
@@ -188,6 +218,7 @@ const SettingsSetup = () => {
 
   return (
     <div className="p-8 space-y-8">
+      {/* HEADER */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-emerald-600 font-bold text-sm uppercase tracking-wider">
@@ -206,76 +237,113 @@ const SettingsSetup = () => {
         </div>
       </div>
 
-      {activeTab === 'certificates' ? (
-        <div className="space-y-6">
-          <div className="flex justify-between items-center">
-            <p className="text-slate-500 font-medium">Manage available document types and pricing.</p>
-            <button onClick={() => openCertModal()} className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-2.5 rounded-xl font-bold transition-all shadow-lg shadow-emerald-500/20 active:scale-95">
-              <Plus size={20} /> Add New Certificate
-            </button>
-          </div>
-          <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
-            <table className="w-full text-left">
-              <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800">
-                <tr>
-                  <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Certificate Name</th>
-                  <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Fee</th>
-                  <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {certificates.map(cert => (
-                  <tr key={cert.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-6 py-4 font-bold text-slate-700 dark:text-white">{cert.name}</td>
-                    <td className="px-6 py-4 font-mono font-bold text-emerald-600">₱{cert.fee}</td>
-                    <td className="px-6 py-4 text-right">
-                      <button onClick={() => openCertModal(cert)} className="p-2 text-slate-400 hover:text-indigo-600 transition-colors"><Edit2 size={16} /></button>
-                      <button onClick={() => { setDeleteTarget({ type: 'cert', item: cert }); setIsDeleteModalOpen(true); }} className="p-2 text-slate-400 hover:text-rose-500 transition-colors"><Trash2 size={16} /></button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+      {/* SEARCH AND ADD ACTION */}
+      <div className="flex flex-col md:flex-row items-center gap-4 justify-between">
+        <div className="relative w-full md:w-96">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <input 
+                type="text"
+                placeholder={`Search ${activeTab === 'certificates' ? 'certificates' : 'staff members'}...`}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-11 pr-4 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+            />
         </div>
-      ) : (
-        <div className="space-y-6">
-          <div className="flex justify-between items-center">
-            <p className="text-slate-500 font-medium">Manage hospital personnel and system access.</p>
-            <button onClick={() => openStaffModal()} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-bold transition-all shadow-lg shadow-indigo-600/20 active:scale-95">
-              <UserPlus size={18} /> Invite Staff
+        
+        {activeTab === 'certificates' ? (
+            <button onClick={() => openCertModal()} className="w-full md:w-auto flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-2.5 rounded-xl font-bold transition-all shadow-lg shadow-emerald-500/20 active:scale-95">
+                <Plus size={20} /> Add New Certificate
             </button>
-          </div>
-          <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
-            <table className="w-full text-left">
-              <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800">
+        ) : (
+            <button onClick={() => openStaffModal()} className="w-full md:w-auto flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-bold transition-all shadow-lg shadow-indigo-600/20 active:scale-95">
+                <UserPlus size={18} /> Invite Staff
+            </button>
+        )}
+      </div>
+
+      {/* TABLE SECTION */}
+      <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+        <table className="w-full text-left">
+          <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800">
+            {activeTab === 'certificates' ? (
                 <tr>
-                  <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Staff Member</th>
-                  <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Role</th>
-                  <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500 text-right">Actions</th>
+                    <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Certificate Name</th>
+                    <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Fee</th>
+                    <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500 text-right">Actions</th>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {staffList.map(staff => (
-                  <tr key={staff.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-6 py-4 flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-slate-500 border border-slate-200 dark:border-slate-700">{staff.name.charAt(0)}</div>
-                      <div><p className="font-bold text-slate-700 dark:text-white">{staff.name}</p><p className="text-xs text-slate-400">@{staff.username}</p></div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="px-3 py-1 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 text-[10px] font-black rounded-lg uppercase tracking-widest">{staff.role}</span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <button onClick={() => openStaffModal(staff)} className="p-2 text-slate-400 hover:text-indigo-600 transition-colors"><Edit2 size={16} /></button>
-                      <button onClick={() => { setDeleteTarget({ type: 'staff', item: staff }); setIsDeleteModalOpen(true); }} className="p-2 text-slate-400 hover:text-rose-500 transition-colors"><Trash2 size={16} /></button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+            ) : (
+                <tr>
+                    <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Staff Member</th>
+                    <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500">Role</th>
+                    <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500 text-right">Actions</th>
+                </tr>
+            )}
+          </thead>
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            {activeTab === 'certificates' ? (
+                (paginatedData as Certificate[]).map(cert => (
+                    <tr key={cert.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-6 py-4 font-bold text-slate-700 dark:text-white">{cert.name}</td>
+                        <td className="px-6 py-4 font-mono font-bold text-emerald-600">₱{cert.fee}</td>
+                        <td className="px-6 py-4 text-right">
+                            <button onClick={() => openCertModal(cert)} className="p-2 text-slate-400 hover:text-indigo-600 transition-colors"><Edit2 size={16} /></button>
+                            <button onClick={() => { setDeleteTarget({ type: 'cert', item: cert }); setIsDeleteModalOpen(true); }} className="p-2 text-slate-400 hover:text-rose-500 transition-colors"><Trash2 size={16} /></button>
+                        </td>
+                    </tr>
+                ))
+            ) : (
+                (paginatedData as Staff[]).map(staff => (
+                    <tr key={staff.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-6 py-4 flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-slate-500 border border-slate-200 dark:border-slate-700">{staff.name.charAt(0)}</div>
+                            <div><p className="font-bold text-slate-700 dark:text-white">{staff.name}</p><p className="text-xs text-slate-400">@{staff.username}</p></div>
+                        </td>
+                        <td className="px-6 py-4">
+                            <span className="px-3 py-1 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 text-[10px] font-black rounded-lg uppercase tracking-widest">{staff.role}</span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                            <button onClick={() => openStaffModal(staff)} className="p-2 text-slate-400 hover:text-indigo-600 transition-colors"><Edit2 size={16} /></button>
+                            <button onClick={() => { setDeleteTarget({ type: 'staff', item: staff }); setIsDeleteModalOpen(true); }} className="p-2 text-slate-400 hover:text-rose-500 transition-colors"><Trash2 size={16} /></button>
+                        </td>
+                    </tr>
+                ))
+            )}
+            {paginatedData.length === 0 && (
+                <tr>
+                    <td colSpan={3} className="px-6 py-12 text-center text-slate-400 italic">No records found matching your search.</td>
+                </tr>
+            )}
+          </tbody>
+        </table>
+
+        {/* PAGINATION FOOTER */}
+        {totalPages > 1 && (
+            <div className="px-6 py-4 bg-slate-50 dark:bg-slate-900/30 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <p className="text-sm text-slate-500 font-medium">
+                    Showing <span className="text-slate-900 dark:text-white">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span> to <span className="text-slate-900 dark:text-white">{Math.min(currentPage * ITEMS_PER_PAGE, filteredData.length)}</span> of <span className="text-slate-900 dark:text-white">{filteredData.length}</span> results
+                </p>
+                <div className="flex gap-2">
+                    <button 
+                        disabled={currentPage === 1}
+                        onClick={() => setCurrentPage(p => p - 1)}
+                        className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 disabled:opacity-30 transition-all"
+                    >
+                        <ChevronLeft size={18} />
+                    </button>
+                    <div className="flex items-center px-4 text-sm font-bold text-slate-700 dark:text-slate-300">
+                        Page {currentPage} of {totalPages}
+                    </div>
+                    <button 
+                        disabled={currentPage === totalPages}
+                        onClick={() => setCurrentPage(p => p + 1)}
+                        className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 disabled:opacity-30 transition-all"
+                    >
+                        <ChevronRight size={18} />
+                    </button>
+                </div>
+            </div>
+        )}
+      </div>
 
       {/* --- MODALS --- */}
       {isCertModalOpen && (
