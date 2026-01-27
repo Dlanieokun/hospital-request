@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ScanLine, X, CheckCircle, Loader2, Search } from 'lucide-react';
 
+const API_BASE_URL = "http://127.0.0.1:8000/api";
+
 interface CollectionItem {
   id: number;
   reference: string;
   name: string;
-  mode: string; // Added Mode property
+  mode: string;
   paid: number;
   status: string;
   created_at: string | null;
@@ -28,14 +30,34 @@ const Treasurer: React.FC = () => {
     'Accept': 'application/json',
   });
 
-  // Fetch all collections
   const fetchCollections = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://127.0.0.1:8000/api/receipts', { headers: getHeaders() });
+      const response = await fetch(`${API_BASE_URL}/receipts`, { headers: getHeaders() });
       if (response.ok) {
         const data = await response.json();
         setCollections(Array.isArray(data) ? data : data.data || []);
+        const online = await fetch('${API_BASE_URL}/online-list', { headers: getHeaders() });
+        if(online.ok){
+          const online_list = await online.json();
+          console.log(online_list);
+          
+          const check = await fetch(
+            "https://apps.leyteprovince.gov.ph/online-payment-api/public/api/v1/status",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+              },
+              body: JSON.stringify(online_list),
+            }
+          );
+          if(check.ok){
+            const check_data = await check.json();
+            console.log(check_data);
+          }
+        }
       }
     } catch (error) {
       console.error("Fetch error:", error);
@@ -48,7 +70,7 @@ const Treasurer: React.FC = () => {
   const handlePayment = async (id: number) => {
     setProcessingId(id);
     try {
-      const response = await fetch(`http://127.0.0.1:8000/api/receipts/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/receipts/${id}`, {
         method: 'PUT',
         headers: getHeaders(),
         body: JSON.stringify({ status: 'paid' }),
@@ -131,7 +153,7 @@ const Treasurer: React.FC = () => {
         
         {/* Header & Search Bar */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
-          <h2 className="text-2xl font-bold text-gray-800 tracking-tight">Treasurer Collections</h2>
+          <h2 className="text-2xl font-bold text-gray-800 tracking-tight">Casher Collections</h2>
           
           <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
             <div className="flex items-center gap-2">
@@ -219,7 +241,7 @@ const Treasurer: React.FC = () => {
                         ) : item.status.toLowerCase() === 'paid' ? (
                           <><CheckCircle size={14}/> Paid</>
                         ) : (
-                          'Pay Receipt'
+                          'For Payment'
                         )}
                       </button>
                     </td>

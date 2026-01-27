@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 
+const API_BASE_URL = "http://127.0.0.1:8000/api";
+
 // --- Types & Interfaces ---
 interface SubQuestion {
   id: number;
@@ -59,7 +61,7 @@ const CertificateRequest = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch('http://127.0.0.1:8000/api/certificates', { 
+      const response = await fetch(`${API_BASE_URL}/certificates`, { 
         headers: getHeaders() 
       });
       if (response.ok) {
@@ -80,7 +82,7 @@ const CertificateRequest = () => {
   const handleRelease = async (requestId: number) => {
     try {
       setProcessingId(requestId);
-      const response = await fetch(`http://127.0.0.1:8000/api/receipts/${requestId}`, {
+      const response = await fetch(`${API_BASE_URL}/receipts/${requestId}`, {
         method: 'PATCH',
         headers: getHeaders(),
         body: JSON.stringify({ status: 'release' }),

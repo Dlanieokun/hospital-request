@@ -421,13 +421,13 @@ function RequestPage() {
 
             <div className="bg-indigo-600 rounded-xl p-4 mb-6 text-white shadow-lg shadow-indigo-100">
                <div className="flex justify-between items-start mb-1">
-                  <span className="text-indigo-100 text-xs font-bold uppercase">Estimated Wait</span>
+                  <span className="text-indigo-100 text-xs font-bold uppercase">Releasing Schedule</span>
                   <div className="text-right">
                     {maxProcessingDays === 0 ? (
                       <span className="text-xs font-black bg-white/20 px-2 py-1 rounded-lg block">
                         {new Date().getHours() < 15 
-                          ? "Available after 24 hours" 
-                          : "Available after 48 hours"}
+                          ? "Available within the day" 
+                          : "Available the following working day"}
                       </span>
                     ) : (
                       <span className="text-xs font-black bg-white/20 px-2 py-0.5 rounded-full">
@@ -448,7 +448,7 @@ function RequestPage() {
                 onClick={() => { setIsSummaryModalOpen(false); setIsDateModalOpen(true); }} 
                 className="flex-1 py-4 text-gray-500 font-bold bg-gray-100 hover:bg-gray-200 rounded-xl transition uppercase text-xs tracking-widest"
               >
-                Change Date
+                Change Request
               </button>
               <button 
                 onClick={() => { setIsSummaryModalOpen(false); setIsSubmitModalOpen(true); }} 

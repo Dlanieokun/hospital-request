@@ -120,7 +120,7 @@ function ReceiptPage() {
                     {item.purpose || "Certified Service"}
                   </p>
                   <p className="text-[10px] text-gray-400 italic">
-                    Unit Price: ₱{item.price.toFixed(2)}
+                    Price/copy: ₱{item.price.toFixed(2)}
                   </p>
                 </div>
                 <div className="text-right">
@@ -136,7 +136,7 @@ function ReceiptPage() {
 
           <div className="space-y-2">
             <div className="flex justify-between text-[10px] font-black text-gray-400 uppercase tracking-widest">
-              <span>Payment Mode:</span>
+              <span>Mode Payment :</span>
               <span className={paymentMethod === 'Online' ? 'text-green-600' : 'text-orange-600'}>
                 {paymentMethod}
               </span>
@@ -159,7 +159,7 @@ function ReceiptPage() {
           <p className="text-[11px] text-indigo-700 font-black uppercase leading-tight">
             {paymentMethod === "Online" 
               ? "Keep this tab open. Complete payment in the new window." 
-              : "Present this QR Code to the clerk for final processing."}
+              : "Present this QR Code to the hospital casher for payment."}
           </p>
         </div>
       </div>
