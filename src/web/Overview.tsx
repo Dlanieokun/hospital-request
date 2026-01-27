@@ -5,13 +5,39 @@ import {
   FileText, ArrowUpRight, Calendar, AlertCircle
 } from 'lucide-react';
 
+// --- Types ---
+interface CertificateDetail {
+  name: string;
+  fee: number;
+}
+
+interface CertificateRequest {
+  details: CertificateDetail;
+}
+
+interface DashboardItem {
+  id: number;
+  name: string;
+  time: string;
+  mode: string;
+  certificate_requests: CertificateRequest[];
+}
+
+interface DashboardData {
+  payment_count: number;
+  paid_count: number;
+  total_paid: string | number;
+  pending: DashboardItem[];
+  request: DashboardItem[];
+  release: DashboardItem[];
+}
+
 const Overview = () => {
   const navigate = useNavigate();
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // --- SAFE ROLE LOGIC ---
   const getUserData = () => {
     try {
       const userString = localStorage.getItem('user');
@@ -23,9 +49,8 @@ const Overview = () => {
   };
 
   const user = getUserData();
-  const userRole = user?.role?.toLowerCase() || ''; // Fixed the crash here
+  const userRole = user?.role?.toLowerCase() || '';
 
-  // Role visibility rules
   const isAdministrator = userRole === 'administrator' || userRole === 'admin';
   const isMedicalStaff = userRole === 'medical staff';
   const isTreasurer = userRole === 'treasurer';
@@ -57,26 +82,30 @@ const Overview = () => {
     fetchDashboardData();
   }, []);
 
-  const getDocumentLabel = (requests: any[]) => {
+  const getDocumentLabel = (requests: CertificateRequest[]) => {
     if (!requests || requests.length === 0) return 'General Request';
     const firstDoc = requests[0]?.details?.name;
     return requests.length > 1 ? `${firstDoc} (+${requests.length - 1})` : firstDoc;
   };
 
-  // Reusable Table Component
-  const TableCard = ({ title, items }: { title: string, items: any[] }) => (
+  // --- Sub-Components ---
+  // Added showViewAll prop with a default of true
+  const TableCard = ({ title, items, showViewAll = true }: { title: string, items: DashboardItem[], showViewAll?: boolean }) => (
     <div className="bg-white dark:bg-slate-950 rounded-[2rem] border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm flex flex-col h-full">
       <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
         <h3 className="font-black text-slate-900 dark:text-white uppercase tracking-wider text-[11px] flex items-center gap-2">
           <FileText size={16} className="text-indigo-500" />
           {title}
         </h3>
-        <button 
-          onClick={() => navigate('/hospital/certificate')}
-          className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
-        >
-          View All
-        </button>
+        {/* Conditional rendering for the View All button */}
+        {showViewAll && (
+          <button 
+            onClick={() => navigate('/hospital/certificate')}
+            className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
+          >
+            View All
+          </button>
+        )}
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-left">
@@ -90,9 +119,14 @@ const Overview = () => {
                         <p className="font-bold text-sm text-slate-700 dark:text-slate-200 group-hover:text-emerald-600 transition-colors truncate uppercase">{row.name}</p>
                         <p className="text-[11px] text-slate-400 truncate">{getDocumentLabel(row.certificate_requests)}</p>
                       </div>
-                      <span className="text-[9px] font-black uppercase text-slate-400 mt-1 whitespace-nowrap">
-                        {row.time ? row.time.split(':').slice(0, 2).join(':') : '--:--'}
-                      </span>
+                      <div className="flex flex-col items-end gap-1">
+                        <span className="text-[9px] font-black uppercase text-slate-400 whitespace-nowrap">
+                          {row.time ? row.time.split(':').slice(0, 2).join(':') : '--:--'}
+                        </span>
+                        <span className="text-[8px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 font-bold uppercase">
+                          {row.mode}
+                        </span>
+                      </div>
                     </div>
                   </td>
                 </tr>
@@ -107,10 +141,10 @@ const Overview = () => {
   );
 
   if (loading) return <div className="p-8 text-center animate-pulse font-bold text-slate-400">Loading Dashboard...</div>;
+  if (error) return <div className="p-8 text-center text-red-500 font-bold">{error}</div>;
 
   return (
     <div className="p-8 space-y-8 animate-in fade-in duration-700">
-      {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Hospital Analytics</h2>
@@ -124,25 +158,23 @@ const Overview = () => {
         </div>
       </div>
 
-      {/* Stats Section - Visible to Admin and Treasurer */}
       {showStats && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <StatCard label="For Payment" value={data?.payment_count} color="text-amber-500" bg="bg-amber-500/10" icon={<Clock />} />
           <StatCard label="Paid" value={data?.paid_count} color="text-emerald-500" bg="bg-emerald-500/10" icon={<CheckCircle />} />
-          <StatCard label="Total Revenue" value={`₱${parseFloat(data?.total_paid || 0).toLocaleString()}`} color="text-indigo-500" bg="bg-indigo-500/10" icon={<TrendingUp />} />
+          <StatCard label="Total Revenue" value={`₱${parseFloat(data?.total_paid as string || '0').toLocaleString()}`} color="text-indigo-500" bg="bg-indigo-500/10" icon={<TrendingUp />} />
         </div>
       )}
 
-      {/* Tables Section - Visible to Admin and Medical Staff */}
       {showTables && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <TableCard title="Incoming Requests" items={data?.pending || []} />
+          {/* Incoming Requests now has showViewAll set to false */}
+          <TableCard title="Incoming Requests" items={data?.pending || []} showViewAll={false} />
           <TableCard title="Pending Requests" items={data?.request || []} />
           <TableCard title="Release Requests" items={data?.release || []} />
         </div>
       )}
 
-      {/* No Access UI */}
       {!showStats && !showTables && (
         <div className="p-20 text-center bg-slate-50 dark:bg-slate-900/50 rounded-[3rem] border border-dashed border-slate-200 dark:border-slate-800">
           <AlertCircle className="mx-auto text-slate-300 mb-4" size={48} />
@@ -154,7 +186,6 @@ const Overview = () => {
   );
 };
 
-// StatCard helper component
 const StatCard = ({ label, value, color, bg, icon }: any) => (
   <div className="bg-white dark:bg-slate-950 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm transition-all hover:-translate-y-1 group">
     <div className="flex justify-between items-start mb-4">
