@@ -1,4 +1,4 @@
-import { useEffect, useState, type ChangeEvent } from "react";
+import { useEffect, useState, type ChangeEvent, useMemo } from "react";
 import { useNavigate } from 'react-router-dom';
 
 // --- CONFIGURATION ---
@@ -23,7 +23,7 @@ interface SubOption {
 interface RequestOption {
   id: number;
   name: string;
-  days: string;
+  days: string | number; // FIX: API sends numbers (1, 0), so we allow both
   fee: number;
   sub_options: SubOption[];
   sub_questions?: SubQuestion[];
@@ -52,6 +52,7 @@ function RequestPage() {
   const [activeRequest, setActiveRequest] = useState<RequestOption | null>(null);
   const [isQuestionsModalOpen, setIsQuestionsModalOpen] = useState<boolean>(false);
   const [isDateModalOpen, setIsDateModalOpen] = useState<boolean>(false);
+  const [isSummaryModalOpen, setIsSummaryModalOpen] = useState<boolean>(false);
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState<boolean>(false);
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [selectedTimeDate, setSelectedTimeDate] = useState<RequestDate | null>(null);
@@ -60,9 +61,33 @@ function RequestPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [isFetchingDates, setIsFetchingDates] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  
-  // New state for legal certification
   const [hasAgreedToTerms, setHasAgreedToTerms] = useState<boolean>(false);
+
+  // --- USEMEMO CALCULATIONS ---
+  const totalAmount = useMemo(() => {
+    return selectedRequests.reduce((sum, name) => {
+      const item = requestOptions.find(r => r.name === name);
+      return sum + (item ? (item.fee * item.copies) : 0);
+    }, 0);
+  }, [selectedRequests, requestOptions]);
+
+  /** * FIXED: This was where the crash occurred. 
+   * We now force 'days' to a string before using .replace()
+   */
+  const maxProcessingDays = useMemo(() => {
+    const dayValues = selectedRequests.map(name => {
+      const item = requestOptions.find(r => r.name === name);
+      if (!item || item.days === undefined || item.days === null) return 0;
+      
+      // Convert to string safely to handle numbers (like 1 or 0)
+      const dayString = String(item.days);
+      const numericDays = parseInt(dayString.replace(/[^0-9]/g, ''), 10);
+      
+      return isNaN(numericDays) ? 0 : numericDays;
+    });
+    
+    return dayValues.length > 0 ? Math.max(0, ...dayValues) : 0;
+  }, [selectedRequests, requestOptions]);
 
   useEffect(() => {
     const fetchRequests = async () => {
@@ -72,6 +97,7 @@ function RequestPage() {
         if (!response.ok) throw new Error("Failed to fetch requests");
         const data: RequestOption[] = await response.json();
         
+        // Initialize copies for each option
         const initializedData = data.map(item => ({
             ...item,
             copies: 1
@@ -133,11 +159,6 @@ function RequestPage() {
     }
   };
 
-  const totalAmount = selectedRequests.reduce((sum, name) => {
-    const item = requestOptions.find(r => r.name === name);
-    return sum + (item ? (item.fee * item.copies) : 0);
-  }, 0);
-
   const handleAnswerChange = (requestName: string, questionIndex: number, value: string) => {
     setRequestOptions(prevOptions =>
       prevOptions.map(opt => {
@@ -191,7 +212,7 @@ function RequestPage() {
   const confirmQuestions = () => {
     if (activeRequest) addRequest(activeRequest.name);
     setIsQuestionsModalOpen(false);
-    setHasAgreedToTerms(false); // Reset for next use
+    setHasAgreedToTerms(false); 
     setActiveRequest(null);
   };
 
@@ -200,7 +221,7 @@ function RequestPage() {
     setSelectedDate(`${dateFormatted} at ${item.time}`);
     setSelectedTimeDate(item);
     setIsDateModalOpen(false);
-    setIsSubmitModalOpen(true);
+    setIsSummaryModalOpen(true);
   };
 
   const handleExit = () => {
@@ -299,7 +320,6 @@ function RequestPage() {
               ))}
             </div>
 
-            {/* Certification Note & Checkbox */}
             <div className="mt-6 p-4 bg-amber-50 border border-amber-100 rounded-xl">
               <label className="flex gap-3 cursor-pointer">
                 <input 
@@ -368,26 +388,130 @@ function RequestPage() {
         </div>
       )}
 
-      {/* 4. Payment Modal */}
-      {isSubmitModalOpen && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4 backdrop-blur-md">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-8 text-center">
-            <h2 className="text-2xl font-bold mb-2 text-gray-800">Payment Method</h2>
-            <div className="bg-gray-50 rounded-xl p-4 mb-2 border border-gray-100">
-              <p className="text-sm text-gray-500 uppercase font-semibold tracking-wider">Total Amount</p>
-              <p className="text-3xl font-black text-indigo-600">₱{totalAmount.toFixed(2)}</p>
+      {/* 4. Request Summary Modal */}
+      {isSummaryModalOpen && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[55] p-4 backdrop-blur-md">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-indigo-100 rounded-lg">
+                <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
+              </div>
+              <h2 className="text-2xl font-bold text-gray-800">Review Request</h2>
             </div>
-            <p className="text-xs text-gray-400 mb-6 italic">Schedule: {selectedDate}</p>
-            <div className="flex flex-col gap-3">
-              <button onClick={() => navigateToReceipt("Online")} className="w-full py-4 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition">Online Payment</button>
-              <button onClick={() => navigateToReceipt("Clerk")} className="w-full py-4 bg-white border-2 border-gray-200 text-gray-700 font-bold rounded-xl hover:border-gray-300 transition">Over the Counter</button>
+            
+            <div className="space-y-3 mb-6 max-h-[40vh] overflow-y-auto pr-2">
+              {selectedRequests.map((name) => {
+                const item = requestOptions.find(r => r.name === name);
+                return (
+                  <div key={name} className="p-4 bg-slate-50 rounded-xl border border-gray-100 flex justify-between items-center">
+                    <div>
+                      <p className="font-bold text-gray-800">{name}</p>
+                      <p className="text-[11px] text-indigo-600 font-bold uppercase tracking-wider mt-1">
+                        ⏱️ Processing: {item?.days} Days
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-black text-gray-700">x{item?.copies}</p>
+                      <p className="text-[10px] text-gray-400">₱{(item ? item.fee * item.copies : 0).toFixed(2)}</p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            <button onClick={() => setIsSubmitModalOpen(false)} className="mt-6 text-sm text-gray-400 hover:text-gray-600">Go Back</button>
+
+            <div className="bg-indigo-600 rounded-xl p-4 mb-6 text-white shadow-lg shadow-indigo-100">
+               <div className="flex justify-between items-start mb-1">
+                  <span className="text-indigo-100 text-xs font-bold uppercase">Estimated Wait</span>
+                  <div className="text-right">
+                    {maxProcessingDays === 0 ? (
+                      <span className="text-xs font-black bg-white/20 px-2 py-1 rounded-lg block">
+                        {new Date().getHours() < 15 
+                          ? "Available after 24 hours" 
+                          : "Available after 48 hours"}
+                      </span>
+                    ) : (
+                      <span className="text-xs font-black bg-white/20 px-2 py-0.5 rounded-full">
+                        {maxProcessingDays} Days Max
+                      </span>
+                    )}
+                  </div>
+               </div>
+
+               <div className="flex justify-between items-center mt-3">
+                  <span className="font-bold">Total Amount</span>
+                  <span className="text-2xl font-black">₱{totalAmount.toFixed(2)}</span>
+               </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button 
+                onClick={() => { setIsSummaryModalOpen(false); setIsDateModalOpen(true); }} 
+                className="flex-1 py-4 text-gray-500 font-bold bg-gray-100 hover:bg-gray-200 rounded-xl transition uppercase text-xs tracking-widest"
+              >
+                Change Date
+              </button>
+              <button 
+                onClick={() => { setIsSummaryModalOpen(false); setIsSubmitModalOpen(true); }} 
+                className="flex-1 py-4 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition uppercase text-xs tracking-widest"
+              >
+                Proceed to Pay
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Header Info */}
+      {/* 5. Payment Modal */}
+      {isSubmitModalOpen && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4 backdrop-blur-md">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 md:p-8 text-center border border-white/20">
+            <div className="mb-6">
+              <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              </div>
+              <h2 className="text-2xl font-black mb-1 text-gray-800 uppercase tracking-tight">Payment Method</h2>
+              <p className="text-sm text-gray-500 italic">Select how you'd like to pay for your request</p>
+            </div>
+
+            <div className="bg-indigo-50 rounded-2xl p-5 mb-6 border border-indigo-100">
+              <p className="text-[10px] text-indigo-400 uppercase font-black tracking-[0.2em] mb-1">Total Amount Due</p>
+              <p className="text-4xl font-black text-indigo-700">₱{totalAmount.toFixed(2)}</p>
+              <div className="mt-3 pt-3 border-t border-indigo-200/50">
+                <p className="text-[11px] text-indigo-500 font-medium">Scheduled: {selectedDate}</p>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <button 
+                onClick={() => navigateToReceipt("Online")} 
+                className="group relative w-full py-4 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 overflow-hidden"
+              >
+                <span className="relative z-10 flex items-center justify-center gap-2">
+                  <span>Online Payment</span>
+                  <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
+                </span>
+              </button>
+
+              <button 
+                onClick={() => navigateToReceipt("Clerk")} 
+                className="w-full py-4 bg-white border-2 border-gray-100 text-gray-600 font-bold rounded-2xl hover:border-indigo-200 hover:text-indigo-600 hover:bg-indigo-50 transition-all"
+              >
+                Over the Counter
+              </button>
+            </div>
+
+            <button 
+              onClick={() => { setIsSubmitModalOpen(false); setIsSummaryModalOpen(true); }} 
+              className="mt-6 text-xs font-bold text-gray-400 hover:text-red-500 uppercase tracking-widest transition-colors"
+            >
+              ← Go Back to Summary
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="absolute top-0 right-0 p-6 text-gray-500 italic text-sm">
         Logged in as: <span className="font-bold text-gray-800">{user ? `${user.firstname} ${user.lastname}` : "Guest"}</span>
       </div>
