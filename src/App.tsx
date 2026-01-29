@@ -10,6 +10,7 @@ import ScanQR from './phone_scan/ScanQR'
 import RequestPage from './phone_scan/RequestPage'
 import ReceiptPage from './phone_scan/ReceiptPage'
 import CertificateRequest from './web/CertificateRequest'
+import FullWord2010 from './web/Certificates/DocumentEditor'
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
         <Route path="/scanner" element={<ScanQR />} />
         <Route path="/request" element={<RequestPage />} />
         <Route path="/receipt" element={<ReceiptPage />} />
+        <Route path="/view-certificate" element={<FullWord2010 />} />
       </Route>
 
       {/* SECURE ROUTES: Only accessible if logged in */}

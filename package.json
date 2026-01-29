@@ -12,6 +12,8 @@
   "dependencies": {
     "@heroicons/react": "^2.2.0",
     "@tailwindcss/vite": "^4.1.17",
+    "@tiptap/react": "^3.17.1",
+    "@tiptap/starter-kit": "^3.17.1",
     "jsqr": "^1.4.0",
     "lucide-react": "^0.562.0",
     "qrcode.react": "^4.2.0",
