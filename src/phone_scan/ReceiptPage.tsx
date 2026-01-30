@@ -19,7 +19,7 @@ function ReceiptPage() {
     total = 0, 
     userName = "Guest", 
     timestamp = new Date().toLocaleString(),
-    paymentMethod = "Clerk",
+    paymentMethod = "Hospital Casher",
     transactionId = "",
     p_id = "", 
   } = location.state || {};

@@ -480,7 +480,7 @@ const StaffModal = ({ isEdit, onClose, formData, setFormData, onSubmit }: any) =
                     <label className="text-xs font-bold text-slate-400 uppercase">Role</label>
                     <select value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} className="w-full px-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 outline-none">
                         <option value="Medical Staff">Medical Staff</option>
-                        <option value="Treasurer">Treasurer</option>
+                        <option value="Hospital Casher">Hospital Casher</option>
                         <option value="administrator">Administrator</option>
                     </select>
                 </div>
