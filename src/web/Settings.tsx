@@ -23,6 +23,7 @@ interface Certificate {
   name: string;
   fee: number;      
   days: number;     
+  url?: string; // Added url property
   sub_questions: SubQuestion[]; 
   sub_options: SubOption[];     
 }
@@ -62,7 +63,7 @@ const SettingsSetup = () => {
   
   // --- FORM & TARGET STATES ---
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
-  const [certFormData, setCertFormData] = useState({ id: 0, name: '', fee: 0, days: 0 });
+  const [certFormData, setCertFormData] = useState({ id: 0, name: '', fee: 0, days: 0, url: '' });
   const [staffFormData, setStaffFormData] = useState({ 
     id: 0, name: '', email: '', role: 'Medical Staff', username: '', password: '', password_confirmation: '' 
   });
@@ -95,7 +96,6 @@ const SettingsSetup = () => {
 
   useEffect(() => { fetchSettings(); }, []);
 
-  // Reset pagination when switching tabs or typing in search
   useEffect(() => {
     setCurrentPage(1);
   }, [activeTab, searchTerm]);
@@ -190,11 +190,17 @@ const SettingsSetup = () => {
   const openCertModal = (cert?: Certificate) => {
     setIsEditMode(!!cert);
     if (cert) {
-      setCertFormData({ id: cert.id, name: cert.name, fee: cert.fee, days: cert.days });
+      setCertFormData({ 
+        id: cert.id, 
+        name: cert.name, 
+        fee: cert.fee, 
+        days: cert.days,
+        url: cert.url || '' 
+      });
       setSubOptions(cert.sub_options || []);
       setSubQuestions(cert.sub_questions || []);
     } else {
-      setCertFormData({ id: 0, name: '', fee: 0, days: 0 });
+      setCertFormData({ id: 0, name: '', fee: 0, days: 0, url: '' });
       setSubOptions([]);
       setSubQuestions([]);
     }
@@ -237,7 +243,6 @@ const SettingsSetup = () => {
         </div>
       </div>
 
-      {/* SEARCH AND ADD ACTION */}
       <div className="flex flex-col md:flex-row items-center gap-4 justify-between">
         <div className="relative w-full md:w-96">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
@@ -261,7 +266,6 @@ const SettingsSetup = () => {
         )}
       </div>
 
-      {/* TABLE SECTION */}
       <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
         <table className="w-full text-left">
           <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800">
@@ -316,7 +320,6 @@ const SettingsSetup = () => {
           </tbody>
         </table>
 
-        {/* PAGINATION FOOTER */}
         {totalPages > 1 && (
             <div className="px-6 py-4 bg-slate-50 dark:bg-slate-900/30 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
                 <p className="text-sm text-slate-500 font-medium">
@@ -345,7 +348,6 @@ const SettingsSetup = () => {
         )}
       </div>
 
-      {/* --- MODALS --- */}
       {isCertModalOpen && (
         <CertModal 
           isEdit={isEditMode} onClose={() => setIsCertModalOpen(false)}
@@ -400,6 +402,8 @@ const CertModal = ({ isEdit, onClose, formData, setFormData, subOptions, setSubO
               <label className="text-xs font-bold text-slate-400 uppercase">Name</label>
               <input required type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full px-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 outline-none" />
             </div>
+            
+            {/* ROW: Fee and Days Side-by-Side */}
             <div>
               <label className="text-xs font-bold text-slate-400 uppercase">Fee (₱)</label>
               <input required type="number" value={formData.fee} onChange={e => setFormData({...formData, fee: Number(e.target.value)})} className="w-full px-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 outline-none" />
@@ -407,6 +411,12 @@ const CertModal = ({ isEdit, onClose, formData, setFormData, subOptions, setSubO
             <div>
               <label className="text-xs font-bold text-slate-400 uppercase">Days</label>
               <input required type="number" value={formData.days} onChange={e => setFormData({...formData, days: Number(e.target.value)})} className="w-full px-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 outline-none" />
+            </div>
+
+            {/* ROW: URL below Fee/Days */}
+            <div className="col-span-2">
+              <label className="text-xs font-bold text-slate-400 uppercase">URL</label>
+              <input type="text" value={formData.url} onChange={e => setFormData({...formData, url: e.target.value})} placeholder="https://..." className="w-full px-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 outline-none" />
             </div>
           </div>
 
