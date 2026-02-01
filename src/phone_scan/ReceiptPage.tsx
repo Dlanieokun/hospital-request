@@ -218,9 +218,11 @@ function ReceiptPage() {
             Pay Now
           </button>
         )}
-        <button onClick={handlePrint} className="flex-1 px-6 py-4 bg-white border-2 border-gray-200 text-gray-700 font-bold rounded-2xl hover:bg-gray-50 transition">
-          Print Receipt
-        </button>
+        {paymentMethod !== "Online" && (
+          <button onClick={handlePrint} className="flex-1 px-6 py-4 bg-white border-2 border-gray-200 text-gray-700 font-bold rounded-2xl hover:bg-gray-50 transition">
+            Print Receipt
+          </button>
+        )}
         <button onClick={handleDone} className="flex-1 px-6 py-4 bg-indigo-600 text-white font-bold rounded-2xl shadow-xl hover:bg-indigo-700 transition">
           Finish
         </button>

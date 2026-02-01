@@ -53,7 +53,7 @@ const Layouts: React.FC = () => {
     { 
       icon: <Landmark size={20} />, 
       label: 'Billing & Fees', 
-      path: '/hospital/treasurer',
+      path: '/hospital/casher',
       allowedRoles: ['administrator', 'treasurer'] 
     },
     { 

@@ -37,7 +37,7 @@ const Treasurer: React.FC = () => {
       if (response.ok) {
         const data = await response.json();
         setCollections(Array.isArray(data) ? data : data.data || []);
-        const online = await fetch('${API_BASE_URL}/online-list', { headers: getHeaders() });
+        const online = await fetch(`${API_BASE_URL}/online-list`, { headers: getHeaders() });
         if(online.ok){
           const online_list = await online.json();
           console.log(online_list);

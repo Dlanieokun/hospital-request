@@ -29,7 +29,7 @@ function App() {
       <Route element={<ProtectedRoute />}>
         <Route path="/hospital" element={<Layouts />}>
           <Route index element={<Overview />} />
-          <Route path="treasurer" element={<Treasurer />} />
+          <Route path="casher" element={<Treasurer />} />
           <Route path="certificate" element={<CertificateRequest />} />
           <Route path="settings" element={<SettingsSetup />} />
         </Route>

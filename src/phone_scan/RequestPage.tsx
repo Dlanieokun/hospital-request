@@ -2,7 +2,9 @@ import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from 'react-router-dom';
 
 // --- CONFIGURATION ---
-const API_BASE_URL = "http://127.0.0.1:8000/api";
+// const API_BASE_URL = "http://127.0.0.1:8000/api";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_WEB = import.meta.env.VITE_API_WEB;
 
 // --- TYPES & INTERFACES ---
 type Time = string;
@@ -41,6 +43,7 @@ interface UserData {
 interface RequestDate {
   date: Date;
   time: Time;
+  case_id: string;
 }
 
 function RequestPage() {
@@ -111,7 +114,8 @@ function RequestPage() {
             const dateData = await res.json();
             setRequestDateList(dateData.map((item: any) => ({ 
               date: new Date(item.date), 
-              time: item.time 
+              time: item.time, 
+              case_id: item.case_id
             })));
             setIsDateModalOpen(true);
           }
@@ -133,7 +137,10 @@ function RequestPage() {
   const processRequestStep = (request: RequestOption, skipUrl = false) => {
     setIsInfoModalOpen(false)
     setActiveRequest(request);
-    if (request.url && !skipUrl) { fetchInfoData(request.url); return; }
+    const caseId = selectedTimeDate?.case_id;
+    const web_patient = `${API_WEB}${request.url}${caseId}`;
+    console.log(web_patient)
+    if (request.url && !skipUrl) { fetchInfoData(web_patient); return; }
     if (request.sub_options?.length > 0 && !request.purpose) { setIsOptionsModalOpen(true); return; }
     if (request.sub_questions?.length > 0) { setIsQuestionsModalOpen(true); return; }
     addRequest(request.name);
@@ -209,7 +216,12 @@ function RequestPage() {
         return opt ? { id: opt.id, label: opt.name, price: opt.fee, copies: opt.copies, purpose: opt.purpose, sub_question: opt.sub_questions } : null;
       });
       const sendData = {
-        requests: detailed, total: totalAmount, totalProcessingDays: totalDays, paymentMethod: method, requestedDate: selectedDate, arrival: selectedTimeDate,
+        requests: detailed,
+        total: totalAmount,
+        totalProcessingDays: totalDays, 
+        paymentMethod: method, 
+        requestedDate: selectedDate, 
+        arrival: selectedTimeDate,
         userName: `${user?.firstname} ${user?.lastname}`, p_id: user?.patient_id, transactionId: `REF-${Date.now()}`
       };
       const response = await fetch(`${API_BASE_URL}/receipt_store`, {
