@@ -37,6 +37,7 @@ interface RequestOption {
 interface UserData {
   firstname: string;
   lastname: string;
+  middlename: string
   patient_id?: number;
 }
 
@@ -275,18 +276,51 @@ function RequestPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70] p-4 backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full overflow-hidden">
             <div className="bg-indigo-600 p-5 text-white font-bold uppercase">{activeRequest?.name} Information</div>
+            
             <div className="p-6 space-y-4 max-h-[50vh] overflow-y-auto">
-              {Object.entries(infoModalData).map(([section, fields]: [string, any]) => (
-                <div key={section} className="border-b pb-4">
-                  <h3 className="text-indigo-600 font-black text-xs uppercase mb-2">{section}</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    {Object.entries(fields).map(([key, val]: [string, any]) => (
-                      <div key={key}><p className="text-[10px] text-gray-400 uppercase">{key}</p><p className="text-sm font-semibold">{val || "---"}</p></div>
-                    ))}
+              
+              {/* Patient Information Section (Always Top) */}
+              <div className="border-b-2 border-indigo-100 pb-4">
+                <h3 className="text-indigo-600 font-black text-xs uppercase mb-2">Patient Information</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Added: Logged-in User Name */}
+                  <div className="col-span-2 bg-indigo-50 p-2 rounded-lg mb-2">
+                    <p className="text-[10px] text-indigo-400 uppercase font-bold">Authenticated Patient</p>
+                    <p className="text-sm font-black text-indigo-900">
+                      {user ? `${user.firstname} ${user.middlename} ${user.lastname}` : "Guest User"}
+                    </p>
                   </div>
+
+                  {/* Render dynamic patient fields from API if they exist */}
+                  {infoModalData["Patient Information"] && 
+                    Object.entries(infoModalData["Patient Information"]).map(([key, val]: [string, any]) => (
+                      <div key={key}>
+                        <p className="text-[10px] text-gray-400 uppercase">{key}</p>
+                        <p className="text-sm font-semibold">{val || "---"}</p>
+                      </div>
+                    ))
+                  }
                 </div>
-              ))}
+              </div>
+
+              {/* Render remaining sections (excluding Patient Information) */}
+              {Object.entries(infoModalData)
+                .filter(([section]) => section !== "Patient Information")
+                .map(([section, fields]: [string, any]) => (
+                  <div key={section} className="border-b pb-4 last:border-0">
+                    <h3 className="text-indigo-600 font-black text-xs uppercase mb-2">{section}</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      {Object.entries(fields).map(([key, val]: [string, any]) => (
+                        <div key={key}>
+                          <p className="text-[10px] text-gray-400 uppercase">{key}</p>
+                          <p className="text-sm font-semibold">{val || "---"}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
             </div>
+
             <div className="p-4 bg-gray-50 flex gap-3">
               <button onClick={() => setIsInfoModalOpen(false)} className="flex-1 py-3 text-gray-500 font-bold uppercase text-xs">Cancel</button>
               <button onClick={() => activeRequest && processRequestStep({...activeRequest, url: undefined})} className="flex-[2] py-3 bg-indigo-600 text-white font-black rounded-xl uppercase">Confirm</button>

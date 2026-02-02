@@ -1,7 +1,8 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { QRCodeCanvas } from 'qrcode.react';
 
-const API_BASE_URL = "http://127.0.0.1:8000/api";
+// const API_BASE_URL = "http://127.0.0.1:8000/api";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 interface ReceiptItem {
   label: string;
@@ -49,8 +50,9 @@ function ReceiptPage() {
         amount: total,
         codeId: 1,
         fullname: userName,
-        reference_code: p_id,
+        reference_code: String(p_id),
       };
+      console.log(pay)
 
       const response = await fetch(
         "https://apps.leyteprovince.gov.ph/online-payment-api/public/api/v1/payments",

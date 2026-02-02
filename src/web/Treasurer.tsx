@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ScanLine, X, CheckCircle, Loader2, Search } from 'lucide-react';
 
-const API_BASE_URL = "http://127.0.0.1:8000/api";
+// const API_BASE_URL = "http://127.0.0.1:8000/api";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 interface CollectionItem {
   id: number;
@@ -55,7 +56,17 @@ const Treasurer: React.FC = () => {
           );
           if(check.ok){
             const check_data = await check.json();
-            console.log(check_data);
+            const paidPayments = check_data.data.filter(
+              (item) => item.payment_status === "paid"
+            );
+
+            console.log(paidPayments.length > 0);
+            const response = await fetch(`${API_BASE_URL}/online-paid`, {
+              method: "POST",
+              headers: getHeaders(),
+              body: JSON.stringify(paidPayments),
+            });
+            console.log(response);
           }
         }
       }
@@ -229,9 +240,9 @@ const Treasurer: React.FC = () => {
                         onClick={() => {
                           if (window.confirm("Mark this receipt as Paid?")) handlePayment(item.id);
                         }}
-                        disabled={item.status.toLowerCase() === 'paid' || processingId === item.id}
+                        disabled={item.status.toLowerCase() === 'paid' || (item.mode.toLowerCase() === 'online' && item.status.toLowerCase() === 'pending') || processingId === item.id}
                         className={`inline-flex items-center gap-2 font-bold px-4 py-1.5 rounded-lg transition-all ${
-                          item.status.toLowerCase() === 'paid' 
+                          item.status.toLowerCase() === 'paid' || item.mode.toLowerCase() === 'online'
                           ? 'text-emerald-500 bg-emerald-50 cursor-not-allowed border border-emerald-100' 
                           : 'text-white bg-emerald-600 hover:bg-emerald-700 shadow-sm'
                         }`}
@@ -240,6 +251,8 @@ const Treasurer: React.FC = () => {
                           <Loader2 size={14} className="animate-spin" />
                         ) : item.status.toLowerCase() === 'paid' ? (
                           <><CheckCircle size={14}/> Paid</>
+                        ) : (item.mode.toLowerCase() === 'online' && item.status.toLowerCase() === 'pending') ? (
+                          <> Waiting to pay</>
                         ) : (
                           'For Payment'
                         )}

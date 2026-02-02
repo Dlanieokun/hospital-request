@@ -71,7 +71,8 @@ const SettingsSetup = () => {
   const [subQuestions, setSubQuestions] = useState<SubQuestion[]>([]);
 
   // --- API CONFIG ---
-  const API_URL = 'http://127.0.0.1:8000/api';
+  // const API_URL = 'http://127.0.0.1:8000/api';
+  const API_URL = import.meta.env.VITE_API_BASE_URL;
   const getHeaders = () => ({
     'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
     'Content-Type': 'application/json',
