@@ -53,7 +53,7 @@ const Layouts: React.FC = () => {
     { 
       icon: <Landmark size={20} />, 
       label: 'Billing & Fees', 
-      path: '/hospital/treasurer',
+      path: '/hospital/casher',
       allowedRoles: ['administrator', 'treasurer'] 
     },
     { 
@@ -136,7 +136,7 @@ const Layouts: React.FC = () => {
           <img 
             src={leyteLogo} 
             alt="Leyte Provincial Logo" 
-            className="w-28 h-auto object-contain rounded-lg" // Removed grayscale filter
+            className="w-28 h-auto object-contain rounded-lg" 
           />
           <p className="mt-3 text-[10px] font-bold text-slate-400 tracking-widest text-center uppercase">
             Province of Leyte

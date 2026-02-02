@@ -5,6 +5,8 @@ import {
   FileText, ArrowUpRight, Calendar, AlertCircle
 } from 'lucide-react';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
 // --- Types ---
 interface CertificateDetail {
   name: string;
@@ -63,7 +65,7 @@ const Overview = () => {
       try {
         setLoading(true);
         setError(null);
-        const response = await fetch('http://127.0.0.1:8000/api/dashboard', {
+        const response = await fetch(`${API_BASE_URL}/dashboard`, {
           headers: {
             'Accept': 'application/json',
             'Authorization': `Bearer ${localStorage.getItem('access_token')}`

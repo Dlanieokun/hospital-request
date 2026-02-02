@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ScanLine, X, CheckCircle, Loader2, Search } from 'lucide-react';
 
+// const API_BASE_URL = "http://127.0.0.1:8000/api";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
 interface CollectionItem {
   id: number;
   reference: string;
   name: string;
-  mode: string; // Added Mode property
+  mode: string;
   paid: number;
   status: string;
   created_at: string | null;
@@ -28,14 +31,44 @@ const Treasurer: React.FC = () => {
     'Accept': 'application/json',
   });
 
-  // Fetch all collections
   const fetchCollections = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://127.0.0.1:8000/api/receipts', { headers: getHeaders() });
+      const response = await fetch(`${API_BASE_URL}/receipts`, { headers: getHeaders() });
       if (response.ok) {
         const data = await response.json();
         setCollections(Array.isArray(data) ? data : data.data || []);
+        const online = await fetch(`${API_BASE_URL}/online-list`, { headers: getHeaders() });
+        if(online.ok){
+          const online_list = await online.json();
+          console.log(online_list);
+          
+          const check = await fetch(
+            "https://apps.leyteprovince.gov.ph/online-payment-api/public/api/v1/status",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+              },
+              body: JSON.stringify(online_list),
+            }
+          );
+          if(check.ok){
+            const check_data = await check.json();
+            const paidPayments = check_data.data.filter(
+              (item) => item.payment_status === "paid"
+            );
+
+            console.log(paidPayments.length > 0);
+            const response = await fetch(`${API_BASE_URL}/online-paid`, {
+              method: "POST",
+              headers: getHeaders(),
+              body: JSON.stringify(paidPayments),
+            });
+            console.log(response);
+          }
+        }
       }
     } catch (error) {
       console.error("Fetch error:", error);
@@ -48,7 +81,7 @@ const Treasurer: React.FC = () => {
   const handlePayment = async (id: number) => {
     setProcessingId(id);
     try {
-      const response = await fetch(`http://127.0.0.1:8000/api/receipts/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/receipts/${id}`, {
         method: 'PUT',
         headers: getHeaders(),
         body: JSON.stringify({ status: 'paid' }),
@@ -131,7 +164,7 @@ const Treasurer: React.FC = () => {
         
         {/* Header & Search Bar */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
-          <h2 className="text-2xl font-bold text-gray-800 tracking-tight">Treasurer Collections</h2>
+          <h2 className="text-2xl font-bold text-gray-800 tracking-tight">Casher Collections</h2>
           
           <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
             <div className="flex items-center gap-2">
@@ -207,9 +240,9 @@ const Treasurer: React.FC = () => {
                         onClick={() => {
                           if (window.confirm("Mark this receipt as Paid?")) handlePayment(item.id);
                         }}
-                        disabled={item.status.toLowerCase() === 'paid' || processingId === item.id}
+                        disabled={item.status.toLowerCase() === 'paid' || (item.mode.toLowerCase() === 'online' && item.status.toLowerCase() === 'pending') || processingId === item.id}
                         className={`inline-flex items-center gap-2 font-bold px-4 py-1.5 rounded-lg transition-all ${
-                          item.status.toLowerCase() === 'paid' 
+                          item.status.toLowerCase() === 'paid' || item.mode.toLowerCase() === 'online'
                           ? 'text-emerald-500 bg-emerald-50 cursor-not-allowed border border-emerald-100' 
                           : 'text-white bg-emerald-600 hover:bg-emerald-700 shadow-sm'
                         }`}
@@ -218,8 +251,10 @@ const Treasurer: React.FC = () => {
                           <Loader2 size={14} className="animate-spin" />
                         ) : item.status.toLowerCase() === 'paid' ? (
                           <><CheckCircle size={14}/> Paid</>
+                        ) : (item.mode.toLowerCase() === 'online' && item.status.toLowerCase() === 'pending') ? (
+                          <> Waiting to pay</>
                         ) : (
-                          'Pay Receipt'
+                          'For Payment'
                         )}
                       </button>
                     </td>
