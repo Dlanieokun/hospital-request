@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Lock, UserCircle, Hospital, Loader2 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
 const Login = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({ login: '', password: '' });
@@ -16,7 +18,7 @@ const Login = () => {
     e.preventDefault();
     setIsLoading(true);
 
-    const loginPromise = fetch('http://127.0.0.1:8000/api/login', {
+    const loginPromise = fetch(`${API_BASE_URL}/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
       body: JSON.stringify(formData),

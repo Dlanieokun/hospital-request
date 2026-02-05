@@ -10,7 +10,7 @@ import toast from 'react-hot-toast';
 // IMPORT ASSETS
 // Replace these paths if your file structure differs
 import leyteLogo from '../assets/leyte_provl_logo.jpg';
-import hospitalLogo from '../assets/logo.jpg'; 
+import hospitalLogo from '../assets/logo.png'; 
 
 const Layouts: React.FC = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -48,13 +48,13 @@ const Layouts: React.FC = () => {
       icon: <Home size={20} />, 
       label: 'Dashboard', 
       path: '/hospital',
-      allowedRoles: ['administrator', 'medical staff', 'treasurer'] 
+      allowedRoles: ['administrator', 'medical staff', 'hospital casher'] 
     },
     { 
       icon: <Landmark size={20} />, 
       label: 'Billing & Fees', 
       path: '/hospital/casher',
-      allowedRoles: ['administrator', 'treasurer'] 
+      allowedRoles: ['administrator', 'hospital casher'] 
     },
     { 
       icon: <FileCheck size={20} />, 

@@ -14,30 +14,32 @@ import FullWord2010 from './web/Certificates/DocumentEditor'
 
 function App() {
   return (
-    <Routes>
-      {/* AUTH ROUTES: Only accessible if logged out */}
-      <Route element={<PublicRoute />}>
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/scanner" element={<ScanQR />} />
-        <Route path="/request" element={<RequestPage />} />
-        <Route path="/receipt" element={<ReceiptPage />} />
-        <Route path="/view-certificate" element={<FullWord2010 />} />
-      </Route>
-
-      {/* SECURE ROUTES: Only accessible if logged in */}
-      <Route element={<ProtectedRoute />}>
-        <Route path="/hospital" element={<Layouts />}>
-          <Route index element={<Overview />} />
-          <Route path="casher" element={<Treasurer />} />
-          <Route path="certificate" element={<CertificateRequest />} />
-          <Route path="settings" element={<SettingsSetup />} />
+      <Routes>
+        {/* AUTH ROUTES: Only accessible if logged out */}
+        <Route element={<PublicRoute />}>
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/scanner" element={<ScanQR />} />
+          <Route path="/request" element={<RequestPage />} />
+          <Route path="/receipt" element={<ReceiptPage />} />
+          <Route path="/view-certificate" element={<FullWord2010 />} />
         </Route>
-      </Route>
 
-      {/* Default Redirect */}
-      <Route path="/" element={<Navigate to="/hospital" replace />} />
-    </Routes>
+        {/* SECURE ROUTES: Only accessible if logged in */}
+        <Route element={<ProtectedRoute />}>
+          <Route path="/hospital" element={<Layouts />}>
+            <Route index element={<Overview />} />
+            <Route path="casher" element={<Treasurer />} />
+            <Route path="certificate" element={<CertificateRequest />} />
+            <Route path="settings" element={<SettingsSetup />} />
+          </Route>
+        </Route>
+
+        {/* Default Redirect */}
+        <Route path="/" element={<Navigate to="/hospital" replace />} />
+      </Routes>
+  
+
   )
 }
 

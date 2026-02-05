@@ -73,11 +73,15 @@ function ReceiptPage() {
         throw new Error(data.message || "Payment request failed");
       }
 
-      const setRef = await fetch(`${API_BASE_URL}/online-ref/${transactionId}`, {
+      const setRefResponse = await fetch(`${API_BASE_URL}/online-ref/${transactionId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Accept": "application/json" },
-        body: JSON.stringify({ref: data.data.id}),
+        body: JSON.stringify({ ref: data.data.id }),
       });
+
+      if (!setRefResponse.ok) {
+        console.error("Failed to update local reference ID");
+      }
 
       if (data.data?.checkout_url) {
         window.open(data.data.checkout_url, '_blank', 'noopener,noreferrer');

@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { User, Mail, Lock, ShieldCheck, AtSign, ArrowLeft, Loader2 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
 const Register = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
@@ -19,7 +21,7 @@ const Register = () => {
     if (formData.password !== formData.password_confirmation) return toast.error("Passwords do not match");
 
     setIsLoading(true);
-    const registerPromise = fetch('http://127.0.0.1:8000/api/register', {
+    const registerPromise = fetch(`${API_BASE_URL}/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
       body: JSON.stringify(formData),

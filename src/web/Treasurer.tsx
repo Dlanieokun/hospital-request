@@ -4,6 +4,10 @@ import { ScanLine, X, CheckCircle, Loader2, Search } from 'lucide-react';
 // const API_BASE_URL = "http://127.0.0.1:8000/api";
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
+interface OnlineStatusItem {
+  payment_status: string;
+}
+
 interface CollectionItem {
   id: number;
   reference: string;
@@ -57,7 +61,7 @@ const Treasurer: React.FC = () => {
           if(check.ok){
             const check_data = await check.json();
             const paidPayments = check_data.data.filter(
-              (item) => item.payment_status === "paid"
+              (item : OnlineStatusItem) => item.payment_status === "paid"
             );
 
             console.log(paidPayments.length > 0);

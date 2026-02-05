@@ -1,7 +1,23 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate, Outlet } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
-const LogoutButton = () => {
+/**
+ * A wrapper component that redirects to /login if no access token is found.
+ */
+export const ProtectedRoute = () => {
+  const token = localStorage.getItem('access_token');
+  
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <Outlet />;
+};
+
+/**
+ * A reusable Logout button that clears session data and redirects.
+ */
+export const LogoutButton = () => {
   const navigate = useNavigate();
 
   const handleLogout = () => {

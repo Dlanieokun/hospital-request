@@ -3,7 +3,7 @@ import {
   Bold, Italic, Underline, AlignLeft, AlignCenter, 
   AlignRight, Printer, Save, Clipboard, Minus, Plus, 
   List, ListOrdered, Image as ImageIcon, Table as TableIcon, 
-  Link as LinkIcon, Type, X 
+  Link as LinkIcon
 } from 'lucide-react';
 
 const DocumentEditor = () => {
@@ -76,8 +76,12 @@ const DocumentEditor = () => {
         {/* Tab Row */}
         <div className="flex items-center text-[11px] px-2 pt-1 gap-1">
           <div className="flex gap-3 px-2 border-r border-[#A3B4C9] mr-2 text-[#2B579A]">
-             <Save size={14} className="cursor-pointer hover:opacity-70" onClick={saveDoc} title="Save as HTML" />
-             <Printer size={14} className="cursor-pointer hover:opacity-70" onClick={() => window.print()} title="Print" />
+             <span title="Save as HTML" className="cursor-pointer hover:opacity-70" onClick={saveDoc}>
+                <Save size={14} />
+             </span>
+             <span title="Print" className="cursor-pointer hover:opacity-70" onClick={() => window.print()}>
+                <Printer size={14} />
+             </span>
           </div>
           {['File', 'Home', 'Insert', 'Page Layout'].map((tab) => (
             <button 
@@ -92,13 +96,21 @@ const DocumentEditor = () => {
               {tab}
             </button>
           ))}
+          
+          {/* Added Document Name Input to use docName/setDocName */}
+          <input 
+            className="ml-4 bg-transparent border-none text-[#2B579A] font-bold focus:outline-none focus:bg-white/30 px-2 rounded"
+            value={docName}
+            onChange={(e) => setDocName(e.target.value)}
+          />
+
           <div className="ml-auto pr-4 text-[10px] text-gray-400 italic font-medium opacity-50 uppercase tracking-widest">Microsoft Word 2010</div>
         </div>
 
         {/* Toolbar Content */}
         <div className="bg-[#F5F8FD] h-24 border-b border-[#A3B4C9] flex p-1 gap-1 shadow-inner overflow-x-auto">
           
-          {/* HOME TAB - Typography & Paragraph */}
+          {/* HOME TAB */}
           {activeTab === 'Home' && (
             <div className="flex gap-1 animate-in fade-in duration-300">
               <RibbonGroup label="Clipboard">
@@ -138,7 +150,7 @@ const DocumentEditor = () => {
             </div>
           )}
 
-          {/* INSERT TAB - Media & Links */}
+          {/* INSERT TAB */}
           {activeTab === 'Insert' && (
             <div className="flex gap-1 animate-in fade-in duration-300">
               <RibbonGroup label="Tables">
@@ -216,7 +228,7 @@ const DocumentEditor = () => {
         </div>
       </footer>
 
-      {/* Global CSS for List behavior and Tables */}
+      {/* Global CSS */}
       <style>{`
         .word-content ul { list-style-type: disc; padding-left: 40px; margin: 12px 0; }
         .word-content ol { list-style-type: decimal; padding-left: 40px; margin: 12px 0; }

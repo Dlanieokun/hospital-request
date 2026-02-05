@@ -73,7 +73,6 @@ function RequestPage() {
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [selectedTimeDate, setSelectedTimeDate] = useState<RequestDate | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isFetchingDates, setIsFetchingDates] = useState(false);
   const [hasAgreedToTerms, setHasAgreedToTerms] = useState(false);
 
   // --- CALCULATIONS ---
@@ -110,7 +109,7 @@ function RequestPage() {
           setUser(parsedUser);
           
           if (parsedUser.patient_id) {
-            setIsFetchingDates(true);
+            // setIsFetchingDates(true); // Removed
             const res = await fetch(`${API_BASE_URL}/patient_date/${parsedUser.patient_id}`);
             const dateData = await res.json();
             setRequestDateList(dateData.map((item: any) => ({ 
@@ -120,7 +119,9 @@ function RequestPage() {
             })));
             setIsDateModalOpen(true);
           }
-        } catch (e) { console.error(e); } finally { setIsFetchingDates(false); }
+        } catch (e) { 
+          console.error(e); 
+        } // Removed finally { setIsFetchingDates(false); }
       }
       setLoading(false);
     };
@@ -136,16 +137,28 @@ function RequestPage() {
   };
 
   const processRequestStep = (request: RequestOption, skipUrl = false) => {
-    setIsInfoModalOpen(false)
-    setActiveRequest(request);
-    const caseId = selectedTimeDate?.case_id;
-    const web_patient = `${API_WEB}${request.url}${caseId}`;
-    console.log(web_patient)
-    if (request.url && !skipUrl) { fetchInfoData(web_patient); return; }
-    if (request.sub_options?.length > 0 && !request.purpose) { setIsOptionsModalOpen(true); return; }
-    if (request.sub_questions?.length > 0) { setIsQuestionsModalOpen(true); return; }
-    addRequest(request.name);
-  };
+  setIsInfoModalOpen(false);
+  setActiveRequest(request);
+  const caseId = selectedTimeDate?.case_id;
+  const web_patient = `${API_WEB}${request.url}${caseId}`;
+  
+  if (request.url && !skipUrl) { 
+    fetchInfoData(web_patient); 
+    return; 
+  }
+  
+  if ((request.sub_options?.length || 0) > 0 && !request.purpose) { 
+    setIsOptionsModalOpen(true); 
+    return; 
+  }
+  
+  if ((request.sub_questions?.length || 0) > 0) { 
+    setIsQuestionsModalOpen(true); 
+    return; 
+  }
+  
+  addRequest(request.name);
+};
 
   const fetchInfoData = async (url: string) => {
     try {
@@ -458,7 +471,7 @@ function RequestPage() {
                       {new Date().getHours() < 15 ? "Available within the day" : "Available the following working day"}
                     </span>
                   ) : (
-                    <span className="text-xs font-black bg-white/20 px-3 py-1.5 rounded-full">{totalDays} Max Working Days</span>
+                    <span className="text-xs font-black bg-white/20 px-3 py-1.5 rounded-full">Max {totalDays} Working Days</span>
                   )}
                 </div>
             </div>
@@ -481,7 +494,7 @@ function RequestPage() {
             </div>
             <div className="flex flex-col gap-3">
               <button onClick={() => navigateToReceipt("Online")} className="w-full py-4 bg-indigo-600 text-white font-bold rounded-2xl">Online Payment</button>
-              <button onClick={() => navigateToReceipt("Hospital Casher")} className="w-full py-4 bg-white border-2 border-gray-100 text-gray-600 font-bold rounded-2xl">Over the Counter</button>
+              <button onClick={() => navigateToReceipt("Hospital Cashier")} className="w-full py-4 bg-white border-2 border-gray-100 text-gray-600 font-bold rounded-2xl">Over the Counter</button>
             </div>
             <button onClick={() => { setIsSubmitModalOpen(false); setIsSummaryModalOpen(true); }} className="mt-6 text-xs font-bold text-gray-400 uppercase">← Back</button>
           </div>

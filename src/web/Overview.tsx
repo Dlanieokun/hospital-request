@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Clock, CheckCircle, TrendingUp, 
@@ -55,7 +55,7 @@ const Overview = () => {
 
   const isAdministrator = userRole === 'administrator' || userRole === 'admin';
   const isMedicalStaff = userRole === 'medical staff';
-  const isTreasurer = userRole === 'treasurer';
+  const isTreasurer = userRole === 'hospital casher';
 
   const showStats = isAdministrator || isTreasurer;
   const showTables = isAdministrator || isMedicalStaff;
@@ -173,7 +173,7 @@ const Overview = () => {
           {/* Incoming Requests now has showViewAll set to false */}
           <TableCard title="Incoming Requests" items={data?.pending || []} showViewAll={false} />
           <TableCard title="Pending Requests" items={data?.request || []} />
-          <TableCard title="Release Requests" items={data?.release || []} />
+          <TableCard title="Released Requests" items={data?.release || []} />
         </div>
       )}
 
