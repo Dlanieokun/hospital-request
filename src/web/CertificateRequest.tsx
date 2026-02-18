@@ -1,7 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-
-// const API_BASE_URL = "http://127.0.0.1:8000/api";
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+import { useNavigate } from 'react-router';
 
 // --- Types & Interfaces ---
 interface SubQuestion {
@@ -17,14 +15,16 @@ interface SubOption {
 interface CertificateRequestItem {
   id: number;
   copies: number;
-  details: { name: string; fee: number; days: number; };
+  details: { name: string; fee: number; days: number; syn_cert: string, url: string};
   sub_options: SubOption[];
   sub_questions: SubQuestion[];
+  sync_data: any;
 }
 
 interface HospitalRequest {
   id: number;
   reference: string;
+  case_id: string;
   name: string;
   status: string; 
   status_request: string;
@@ -35,6 +35,9 @@ interface HospitalRequest {
   updated_at: string;
   certificate_requests: CertificateRequestItem[];
 }
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_WEB = import.meta.env.VITE_API_WEB;
 
 const CertificateRequest = () => {
   const [data, setData] = useState<HospitalRequest[]>([]);
@@ -49,6 +52,7 @@ const CertificateRequest = () => {
   const [showReleased, setShowReleased] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
+  const navigate = useNavigate();
 
   // Helper for Authorization Headers
   const getHeaders = () => ({
@@ -90,14 +94,15 @@ const CertificateRequest = () => {
       });
 
       if (response.ok) {
-        const now = new Date().toLocaleString();
+        // Use ISO String for consistency so formatDateTime works correctly
+        const now = new Date().toISOString();
         const updatedData = data.map(req =>
-            req.id === requestId ? { ...req, status_request: 'release', release_date:  now} : req
+            req.id === requestId ? { ...req, status_request: 'release', release_date: now } : req
         );
         setData(updatedData);
         
         if (selectedRequest?.id === requestId) {
-            setSelectedRequest(prev => prev ? { ...prev, status_request: 'release', release_date: now} : null);
+            setSelectedRequest(prev => prev ? { ...prev, status_request: 'release', release_date: now } : null);
         }
       } else {
           alert("Failed to update status. Please try again.");
@@ -109,11 +114,75 @@ const CertificateRequest = () => {
     }
   };
 
+  // Logic for Printing Certificates
+  const handlePrintCertificate = async (cert: CertificateRequestItem, request: HospitalRequest) => {
+    let apiData: any = {};
+    
+    try {
+      // Using optional chaining to safely build the URL
+      const url = `${API_WEB}/${cert?.details?.url}/${request?.case_id}`;
+      const response = await fetch(url);
+      const result = await response.json();
+
+      if (result.status === "success" || result.message === "Success") {
+        // FIX: Store the inner 'data' object which contains the categories
+        apiData = result.data || {};
+      }
+    } catch (error) {
+      console.error("Fetch error:", error);
+    }
+
+    const mapped = Object.fromEntries(
+      cert.sync_data.map((item: any) => {
+        const syncKey = item.key_sync;
+        let value = "";
+
+        if (syncKey) {
+          // 1. Check in the 'request' object first
+          if (request && syncKey in request) {
+            value = (request as any)[syncKey];
+          } 
+          
+          // 2. Search in nested API data (apiData has "Case Information", etc.)
+          if (!value) {
+            // Flatten all category objects into one search pool
+            const allApiFields = Object.values(apiData).reduce((acc: any, curr: any) => {
+              return { ...acc, ...curr };
+            }, {});
+
+            if (syncKey in allApiFields) {
+              value = allApiFields[syncKey];
+            }
+          }
+
+          // 3. If still empty, check 'sub_questions' answer
+          if (!value) {
+            const subQuestion = cert.sub_questions.find(
+              (sq: any) => sq.details.question === syncKey
+            );
+            if (subQuestion) {
+              value = subQuestion.answer;
+            }
+          }
+        }
+
+        return [item.key, value ?? ""];
+      })
+    );
+    // Use the syn_cert for navigation
+    const targetPath = cert?.details?.syn_cert ? `/${cert.details.syn_cert}` : "/medical-certificate";
+    
+    navigate(targetPath, {
+      state: {
+        mappedData: mapped,
+      },
+    });
+  };
+
   useEffect(() => {
     fetchRequests();
   }, []);
 
-  // Reset pagination to page 1 when search or filter changes
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery, showPending, showReleased]);
@@ -141,7 +210,11 @@ const CertificateRequest = () => {
 
   const formatDateTime = (isoString: string | null) => {
     if (!isoString) return "N/A";
-    return new Date(isoString).toLocaleString('en-US', {
+    // Checks if string is already formatted or is ISO
+    const date = new Date(isoString);
+    if (isNaN(date.getTime())) return isoString; 
+
+    return date.toLocaleString('en-US', {
       month: 'short', day: 'numeric', year: 'numeric',
       hour: '2-digit', minute: '2-digit',
     });
@@ -217,103 +290,101 @@ const CertificateRequest = () => {
 
         {/* Request Table */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="bg-slate-50/50 border-b border-slate-200">
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Requestor Name</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Certificates Requested</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Certificate Date</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Request Date</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Release Date</th>
-                <th className="px-6 py-4 text-center text-xs font-bold text-slate-500 uppercase">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {loading ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-10 text-center text-gray-400 italic">Updating records...</td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="bg-slate-50/50 border-b border-slate-200">
+                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Requestor Name</th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Certificates Requested</th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Visit Date</th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Request Date</th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Release Date</th>
+                  <th className="px-6 py-4 text-center text-xs font-bold text-slate-500 uppercase">Action</th>
                 </tr>
-              ) : paginatedData.length > 0 ? (
-                paginatedData.map((req) => (
-                  <tr key={req.id} className="hover:bg-blue-50/30 transition-all">
-                    <td className="px-6 py-5">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 border border-slate-200 uppercase font-bold text-xs">
-                          {req.name.substring(0, 2)}
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {loading ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-10 text-center text-gray-400 italic">Updating records...</td>
+                  </tr>
+                ) : paginatedData.length > 0 ? (
+                  paginatedData.map((req) => (
+                    <tr key={req.id} className="hover:bg-blue-50/30 transition-all">
+                      <td className="px-6 py-5">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 border border-slate-200 uppercase font-bold text-xs">
+                            {req.name.substring(0, 2)}
+                          </div>
+                          <div>
+                            <p className="font-bold text-slate-800 uppercase text-sm">{req.name}</p>
+                            <p className="text-[10px] font-mono text-blue-500 tracking-tighter">{req.reference}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-bold text-slate-800 uppercase text-sm">{req.name}</p>
-                          <p className="text-[10px] font-mono text-blue-500 tracking-tighter">{req.reference}</p>
-                        </div>
-                      </div>
-                    </td>
+                      </td>
 
-                    <td className="px-6 py-5">
-                      <div className="flex flex-col gap-1.5">
-                        {req.certificate_requests?.map((cert) => (
-                          <div key={cert.id} className="flex items-center gap-2">
-                            <span className="px-2 py-0.5 bg-white border border-blue-100 text-blue-700 text-[10px] font-bold rounded shadow-sm">
+                      <td className="px-6 py-5">
+                        <div className="flex flex-wrap gap-1.5">
+                          {req.certificate_requests?.map((cert) => (
+                            <span key={cert.id} className="px-2 py-0.5 bg-white border border-blue-100 text-blue-700 text-[10px] font-bold rounded shadow-sm">
                               {cert.details.name} {cert.copies > 1 && <span className="text-slate-400 ml-1">×{cert.copies}</span>}
                             </span>
-                          </div>
-                        ))}
-                      </div>
-                    </td>
+                          ))}
+                        </div>
+                      </td>
 
-                    <td className="px-6 py-5">
-                      <div className="flex flex-col">
-                        <span className="text-sm font-bold text-slate-700">{req.date}</span>
-                        <span className="text-[10px] text-slate-400">{req.time}</span>
-                      </div>
-                    </td>
+                      <td className="px-6 py-5">
+                        <div className="flex flex-col">
+                          <span className="text-sm font-bold text-slate-700">{req.date}</span>
+                          <span className="text-[10px] text-slate-400">{req.time}</span>
+                        </div>
+                      </td>
 
-                    <td className="px-6 py-5">
-                      <div className="text-xs font-semibold text-slate-600">
+                      <td className="px-6 py-5 text-xs font-semibold text-slate-600">
                         {formatDateTime(req.request_date)}
-                      </div>
-                    </td>
+                      </td>
 
-                    <td className="px-6 py-5">
-                      {req.release_date ? (
-                        <span className="text-sm font-bold text-emerald-600">{req.release_date}</span>
-                      ) : (
-                        <span className="text-xs italic text-slate-300">Not Released</span>
-                      )}
-                    </td>
-
-                    <td className="px-6 py-5 text-center">
-                      <div className="flex justify-center items-center gap-3">
-                        <button 
-                          onClick={() => setSelectedRequest(req)}
-                          className="text-slate-500 hover:text-blue-600 font-bold text-xs px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors"
-                        >
-                          View Info
-                        </button>
-
-                        {req.status_request === 'release' ? (
-                          <div className="flex items-center gap-1.5 px-4 py-2 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-xl text-[10px] font-black uppercase tracking-wider">
-                            Released
-                          </div>
+                      <td className="px-6 py-5">
+                        {req.release_date ? (
+                          <span className="text-sm font-bold text-emerald-600">{formatDateTime(req.release_date)}</span>
                         ) : (
-                          <button 
-                            disabled={processingId === req.id}
-                            onClick={() => handleRelease(req.id)}
-                            className={`bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-xl text-xs font-bold shadow-md transition-all active:scale-95 ${processingId === req.id ? 'opacity-50 cursor-not-allowed' : ''}`}
-                          >
-                            {processingId === req.id ? 'Processing...' : 'Release'}
-                          </button>
+                          <span className="text-xs italic text-slate-300">Not Released</span>
                         )}
-                      </div>
-                    </td>
+                      </td>
+
+                      <td className="px-6 py-5 text-center">
+                        <div className="flex justify-center items-center gap-3">
+                          <button 
+                            onClick={() => setSelectedRequest(req)}
+                            className="text-slate-500 hover:text-blue-600 font-bold text-xs px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors"
+                          >
+                            View Info
+                          </button>
+
+                          {req.status_request === 'release' ? (
+                            <div className="flex items-center gap-1.5 px-4 py-2 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-xl text-[10px] font-black uppercase tracking-wider">
+                              Released
+                            </div>
+                          ) : (
+                            <button 
+                              disabled={processingId === req.id}
+                              onClick={() => handleRelease(req.id)}
+                              className={`bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-xl text-xs font-bold shadow-md transition-all active:scale-95 ${processingId === req.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                              {processingId === req.id ? '...' : 'Release'}
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-10 text-center text-gray-400 italic">No records found matching your filters.</td>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={6} className="px-6 py-10 text-center text-gray-400 italic">No records found matching your filters.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                )}
+              </tbody>
+            </table>
+          </div>
           
           {/* Pagination Controls */}
           <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -361,57 +432,78 @@ const CertificateRequest = () => {
         </div>
       </div>
 
-      {/* --- Detail Review Modal --- */}
+      {/* --- Detail Modal --- */}
       {selectedRequest && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-xl w-full max-h-[85vh] overflow-hidden border border-slate-200 flex flex-col">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-[2rem] shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden border border-slate-100 flex flex-col animate-in fade-in zoom-in duration-200">
             
-            <div className="p-6 bg-slate-900 text-white flex justify-between items-center">
-              <div>
-                <h3 className="text-lg font-bold">Review Request</h3>
-                <p className="text-slate-400 text-xs font-mono">{selectedRequest.reference}</p>
+            <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-white">
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-slate-800 tracking-tight">Request Details</h3>
+                  <p className="text-xs font-bold text-blue-500 font-mono tracking-tighter uppercase">{selectedRequest.reference}</p>
+                </div>
               </div>
-              <button 
-                onClick={() => setSelectedRequest(null)} 
-                className="h-10 w-10 flex items-center justify-center rounded-full hover:bg-white/10 text-xl"
-              >
-                ×
+              <button onClick={() => setSelectedRequest(null)} className="h-10 w-10 flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-400">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
 
-            <div className="p-8 overflow-y-auto bg-white">
-              <div className="mb-8 flex justify-between items-start">
-                <div>
+            <div className="p-8 overflow-y-auto">
+              <div className="bg-slate-50 rounded-2xl p-6 mb-8 border border-slate-100 grid grid-cols-2 gap-y-4 gap-x-8">
+                <div className="col-span-2 border-b border-slate-200 pb-4 mb-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Patient Name</label>
-                  <p className="text-xl font-bold text-slate-800 uppercase">{selectedRequest.name}</p>
+                  <p className="text-2xl font-black text-slate-800 uppercase tracking-tight">{selectedRequest.name}</p>
                 </div>
-                {selectedRequest.status_request === 'release' && (
-                  <div className="px-3 py-1 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-full text-[10px] font-black">
-                    RELEASED ON {selectedRequest.release_date}
-                  </div>
-                )}
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">Visit Date</label>
+                  <p className="text-sm font-bold text-slate-700">{selectedRequest.date} <span className="text-slate-400 font-medium ml-1">at {selectedRequest.time}</span></p>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">Status</label>
+                  {selectedRequest.status_request === 'release' ? (
+                    <span className="inline-flex items-center gap-1.5 text-emerald-600 font-black text-[10px] uppercase">
+                      Released
+                    </span>
+                  ) : (
+                    <span className="text-amber-500 font-black text-[10px] uppercase italic">Pending Review</span>
+                  )}
+                </div>
               </div>
 
-              <div className="space-y-6">
+              <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 ml-1">Documents Requested</h4>
+              <div className="space-y-4">
                 {selectedRequest.certificate_requests?.map((cert) => (
-                  <div key={cert.id} className="border border-slate-100 rounded-2xl overflow-hidden">
-                    <div className="bg-slate-50 px-4 py-3 border-b border-slate-100 flex justify-between">
-                      <span className="text-sm font-bold text-blue-700">{cert.details.name} (x{cert.copies})</span>
-                      <span className="text-[10px] font-bold text-slate-400">₱{cert.details.fee}</span>
+                  <div key={cert.id} className="group border border-slate-200 rounded-2xl overflow-hidden">
+                    <div className="bg-white px-5 py-4 border-b border-slate-100 flex justify-between items-center">
+                      <div className="flex items-center gap-3">
+                        <div className="px-2.5 py-1 bg-blue-600 text-white text-[10px] font-black rounded-lg">x{cert.copies}</div>
+                        <span className="text-sm font-black text-slate-800">{cert.details.name}</span>
+                      </div>
+                      <button 
+                        onClick={() => handlePrintCertificate(cert, selectedRequest)}
+                        className="p-2 rounded-xl bg-slate-50 text-slate-400 hover:bg-blue-600 hover:text-white transition-all shadow-sm active:scale-90"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+                      </button>
                     </div>
-                    
-                    <div className="p-4 space-y-4">
+                    <div className="p-5 bg-slate-50/30">
                       {cert.sub_questions && cert.sub_questions.length > 0 ? (
-                        cert.sub_questions.map((q) => (
-                          <div key={q.id}>
-                            <p className="text-[11px] font-bold text-slate-400 mb-1">{q.details.question}</p>
-                            <p className="text-sm font-semibold text-slate-700 bg-blue-50/30 p-2 rounded-lg">
-                              {q.answer}
-                            </p>
-                          </div>
-                        ))
+                        <div className="grid grid-cols-1 gap-4">
+                          {cert.sub_questions.map((q) => (
+                            <div key={q.id} className="relative pl-4 border-l-2 border-blue-200">
+                              <p className="text-[10px] font-bold text-blue-500 uppercase mb-1">{q.details.question}</p>
+                              <p className="text-sm font-bold text-slate-700">{q.answer}</p>
+                            </div>
+                          ))}
+                        </div>
                       ) : (
-                        <p className="text-xs text-slate-400 italic text-center py-2">No additional assessment data.</p>
+                        <p className="text-[10px] font-bold uppercase text-center opacity-40">No additional details</p>
                       )}
                     </div>
                   </div>
@@ -419,22 +511,26 @@ const CertificateRequest = () => {
               </div>
             </div>
 
-            <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
-              <button 
-                onClick={() => setSelectedRequest(null)} 
-                className="px-6 py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:bg-slate-200"
-              >
-                Close
-              </button>
-              {selectedRequest.status_request !== 'release' && (
-                <button 
-                  disabled={processingId === selectedRequest.id}
-                  onClick={() => handleRelease(selectedRequest.id)}
-                  className={`bg-blue-600 text-white px-8 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all ${processingId === selectedRequest.id ? 'opacity-50' : ''}`}
-                >
-                  {processingId === selectedRequest.id ? 'Updating...' : 'Approve & Release'}
-                </button>
-              )}
+            <div className="px-8 py-6 border-t border-slate-100 bg-white flex justify-between items-center">
+              <div className="hidden sm:block">
+                {selectedRequest.release_date && (
+                  <p className="text-[10px] font-bold text-slate-400 italic">
+                    Released on: {formatDateTime(selectedRequest.release_date)}
+                  </p>
+                )}
+              </div>
+              <div className="flex gap-3 w-full sm:w-auto">
+                <button onClick={() => setSelectedRequest(null)} className="flex-1 sm:flex-none px-6 py-3 rounded-xl text-sm font-bold text-slate-500 hover:bg-slate-100">Go Back</button>
+                {selectedRequest.status_request !== 'release' && (
+                  <button 
+                    disabled={processingId === selectedRequest.id}
+                    onClick={() => handleRelease(selectedRequest.id)}
+                    className="flex-1 sm:flex-none bg-blue-600 text-white px-8 py-3 rounded-xl text-sm font-black shadow-lg hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {processingId === selectedRequest.id ? 'Processing...' : 'Approve & Release'}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>

@@ -54,8 +54,8 @@ const Overview = () => {
   const userRole = user?.role?.toLowerCase() || '';
 
   const isAdministrator = userRole === 'administrator' || userRole === 'admin';
-  const isMedicalStaff = userRole === 'medical staff';
-  const isTreasurer = userRole === 'hospital casher';
+  const isMedicalStaff = userRole === 'medical record';
+  const isTreasurer = userRole === 'hospital cashier';
 
   const showStats = isAdministrator || isTreasurer;
   const showTables = isAdministrator || isMedicalStaff;

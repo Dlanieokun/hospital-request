@@ -168,7 +168,7 @@ const Treasurer: React.FC = () => {
         
         {/* Header & Search Bar */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
-          <h2 className="text-2xl font-bold text-gray-800 tracking-tight">Casher Collections</h2>
+          <h2 className="text-2xl font-bold text-gray-800 tracking-tight">Cashier Collections</h2>
           
           <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
             <div className="flex items-center gap-2">

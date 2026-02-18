@@ -140,7 +140,7 @@ function RequestPage() {
   setIsInfoModalOpen(false);
   setActiveRequest(request);
   const caseId = selectedTimeDate?.case_id;
-  const web_patient = `${API_WEB}${request.url}${caseId}`;
+  const web_patient = `${API_WEB}/${request.url}/${caseId}`;
   
   if (request.url && !skipUrl) { 
     fetchInfoData(web_patient); 
@@ -494,7 +494,7 @@ function RequestPage() {
             </div>
             <div className="flex flex-col gap-3">
               <button onClick={() => navigateToReceipt("Online")} className="w-full py-4 bg-indigo-600 text-white font-bold rounded-2xl">Online Payment</button>
-              <button onClick={() => navigateToReceipt("Hospital Cashier")} className="w-full py-4 bg-white border-2 border-gray-100 text-gray-600 font-bold rounded-2xl">Over the Counter</button>
+              <button onClick={() => navigateToReceipt("Hospital Cashier")} className="w-full py-4 bg-white border-2 border-gray-100 text-gray-600 font-bold rounded-2xl">Hospital Cashier</button>
             </div>
             <button onClick={() => { setIsSubmitModalOpen(false); setIsSummaryModalOpen(true); }} className="mt-6 text-xs font-bold text-gray-400 uppercase">← Back</button>
           </div>

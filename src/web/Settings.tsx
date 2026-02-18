@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom'; // Integrated for navigation
 import { 
   Plus, Edit2, Trash2, X, Settings as SettingsIcon, 
-  Users, FileText, UserPlus, AlertTriangle, Search, ChevronLeft, ChevronRight
+  Users, FileText, UserPlus, AlertTriangle, Search, ChevronLeft, ChevronRight,
+  CheckCircle2, AlertCircle, Link2
 } from 'lucide-react';
 
 // --- Interfaces ---
@@ -23,7 +25,7 @@ interface Certificate {
   name: string;
   fee: number;      
   days: number;     
-  url?: string; // Added url property
+  url?: string; 
   sub_questions: SubQuestion[]; 
   sub_options: SubOption[];     
 }
@@ -41,27 +43,27 @@ interface DeleteTarget {
   item: Certificate | Staff;
 }
 
+interface Toast {
+  id: number;
+  message: string;
+  type: 'success' | 'error';
+}
+
 const ITEMS_PER_PAGE = 5;
 
 const SettingsSetup = () => {
+  const navigate = useNavigate(); // Initialize navigation hook
   const [activeTab, setActiveTab] = useState<'certificates' | 'staff'>('certificates');
   const [loading, setLoading] = useState(true);
-  
-  // --- SEARCH & PAGINATION STATES ---
+  const [toasts, setToasts] = useState<Toast[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-
-  // --- DATA STATES ---
   const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [staffList, setStaffList] = useState<Staff[]>([]);
-
-  // --- UI/MODAL STATES ---
   const [isCertModalOpen, setIsCertModalOpen] = useState(false);
   const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
-  
-  // --- FORM & TARGET STATES ---
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [certFormData, setCertFormData] = useState({ id: 0, name: '', fee: 0, days: 0, url: '' });
   const [staffFormData, setStaffFormData] = useState({ 
@@ -70,28 +72,37 @@ const SettingsSetup = () => {
   const [subOptions, setSubOptions] = useState<SubOption[]>([]);
   const [subQuestions, setSubQuestions] = useState<SubQuestion[]>([]);
 
-  // --- API CONFIG ---
-  // const API_URL = 'http://127.0.0.1:8000/api';
   const API_URL = import.meta.env.VITE_API_BASE_URL;
+  const API_WEB = import.meta.env.VITE_API_WEB;
   const getHeaders = () => ({
     'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
     'Content-Type': 'application/json',
     'Accept': 'application/json',
   });
 
-  const fetchSettings = async () => {
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 3000);
+  };
+
+  const fetchSettings = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const response = await fetch(`${API_URL}/settings`, { headers: getHeaders() });
       if (response.ok) {
         const data = await response.json();
         setCertificates(data.certificates || []);
         setStaffList(data.staff || []);
+        if (silent) showToast("Data synchronized successfully");
       }
     } catch (error) {
       console.error("Fetch error:", error);
+      showToast("Failed to refresh data", "error");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -101,7 +112,6 @@ const SettingsSetup = () => {
     setCurrentPage(1);
   }, [activeTab, searchTerm]);
 
-  // --- FILTERING & PAGINATION LOGIC ---
   const getFilteredData = () => {
     if (activeTab === 'certificates') {
       return certificates.filter(c => 
@@ -122,8 +132,6 @@ const SettingsSetup = () => {
     currentPage * ITEMS_PER_PAGE
   );
 
-  // --- ACTIONS ---
-
   const handleCertSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const method = isEditMode ? 'PUT' : 'POST';
@@ -138,15 +146,19 @@ const SettingsSetup = () => {
       });
 
       if (response.ok) {
-        window.location.reload(); 
+        showToast(`Certificate ${isEditMode ? 'updated' : 'created'} successfully`);
+        setTimeout(() => window.location.reload(), 1000);
       }
-    } catch (error) { console.error("Save failed:", error); }
+    } catch (error) { 
+        console.error("Save failed:", error); 
+        showToast("An error occurred while saving", "error");
+    }
   };
 
   const handleStaffSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (staffFormData.password !== staffFormData.password_confirmation) {
-        alert("Passwords do not match!");
+        showToast("Passwords do not match!", "error");
         return;
     }
 
@@ -167,12 +179,16 @@ const SettingsSetup = () => {
       });
 
       if (response.ok) {
-        window.location.reload();
+        showToast(`Staff member ${isEditMode ? 'updated' : 'invited'} successfully`);
+        setTimeout(() => window.location.reload(), 1000);
       } else {
         const err = await response.json();
-        alert(err.message || "Operation failed");
+        showToast(err.message || "Operation failed", "error");
       }
-    } catch (error) { console.error("Staff save failed:", error); }
+    } catch (error) { 
+        console.error("Staff save failed:", error); 
+        showToast("An error occurred", "error");
+    }
   };
 
   const executeDelete = async () => {
@@ -183,9 +199,10 @@ const SettingsSetup = () => {
     try {
       const response = await fetch(url, { method: 'DELETE', headers: getHeaders() });
       if (response.ok) {
-        window.location.reload();
+        showToast("Record deleted successfully");
+        setTimeout(() => window.location.reload(), 1000);
       }
-    } catch (error) { console.error("Delete failed:", error); }
+    } catch (error) { showToast("Delete failed", "error"); }
   };
 
   const openCertModal = (cert?: Certificate) => {
@@ -217,6 +234,47 @@ const SettingsSetup = () => {
     setIsStaffModalOpen(true);
   };
 
+  // Function to handle navigation to Data Mapping
+  const handleGoToMapping = async  () => {
+    let datas ={};
+    try {
+      const response = await fetch(`${API_WEB}/${certFormData.url}/0`);
+      const result = await response.json();
+
+      if (result.status === "success" || result.message === "Success") {
+        datas = result;
+      }
+
+    } catch (error) {
+      console.error("Fetch error:", error);
+    }
+    console.log(
+      { 
+          certificate: {
+            ...certFormData,
+            sub_questions: subQuestions,
+            sub_options: subOptions
+          },
+          patient: {
+            datas
+          }
+        }
+    )
+    navigate('/data-mapping', { 
+      state: 
+        { 
+          certificate: {
+            ...certFormData,
+            sub_questions: subQuestions,
+            sub_options: subOptions
+          },
+          patient: {
+            datas
+          }
+        }
+    });
+  };
+
   if (loading) return (
     <div className="flex items-center justify-center min-h-[400px]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div>
@@ -224,8 +282,16 @@ const SettingsSetup = () => {
   );
 
   return (
-    <div className="p-8 space-y-8">
-      {/* HEADER */}
+    <div className="p-8 space-y-8 relative">
+      <div className="fixed top-8 right-8 z-[110] flex flex-col gap-3 pointer-events-none">
+        {toasts.map(toast => (
+            <div key={toast.id} className={`flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl border animate-in slide-in-from-right-full pointer-events-auto ${toast.type === 'success' ? 'bg-white dark:bg-slate-900 border-emerald-100 dark:border-emerald-900/30 text-emerald-600' : 'bg-white dark:bg-slate-900 border-rose-100 dark:border-rose-900/30 text-rose-500'}`}>
+                {toast.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
+                <p className="font-bold text-sm tracking-tight">{toast.message}</p>
+            </div>
+        ))}
+      </div>
+
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-emerald-600 font-bold text-sm uppercase tracking-wider">
@@ -356,6 +422,7 @@ const SettingsSetup = () => {
           subOptions={subOptions} setSubOptions={setSubOptions}
           subQuestions={subQuestions} setSubQuestions={setSubQuestions}
           onSubmit={handleCertSubmit}
+          onSync={handleGoToMapping}
         />
       )}
 
@@ -386,17 +453,33 @@ const SettingsSetup = () => {
 
 // --- SUB-COMPONENTS ---
 
-const CertModal = ({ isEdit, onClose, formData, setFormData, subOptions, setSubOptions, subQuestions, setSubQuestions, onSubmit }: any) => {
+const CertModal = ({ isEdit, onClose, formData, setFormData, subOptions, setSubOptions, subQuestions, setSubQuestions, onSubmit, onSync }: any) => {
   const addOption = () => setSubOptions([...subOptions, { id: Date.now(), name: '' }]);
   const addQuestion = () => setSubQuestions([...subQuestions, { id: Date.now(), question: '', type: 'text' }]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
       <div className="bg-white dark:bg-slate-950 w-full max-w-2xl rounded-2xl shadow-2xl border flex flex-col max-h-[90vh] overflow-hidden">
+        
         <div className="px-6 py-4 border-b dark:border-slate-800 flex items-center justify-between">
           <h3 className="text-xl font-bold">{isEdit ? 'Edit Certificate' : 'New Certificate'}</h3>
-          <button onClick={onClose} className="p-2 rounded-xl text-slate-500"><X size={20} /></button>
+          <div className="flex items-center gap-1">
+            {isEdit && (
+                <button 
+                    type="button"
+                    onClick={onSync}
+                    className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-emerald-600 transition-all active:rotate-180 duration-500"
+                    title="Configure Data Mapping"
+                >
+                    <Link2 size={20} />
+                </button>
+            )}
+            <button onClick={onClose} className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                <X size={20} />
+            </button>
+          </div>
         </div>
+
         <form onSubmit={onSubmit} className="p-6 overflow-y-auto space-y-6">
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
@@ -404,7 +487,6 @@ const CertModal = ({ isEdit, onClose, formData, setFormData, subOptions, setSubO
               <input required type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full px-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 outline-none" />
             </div>
             
-            {/* ROW: Fee and Days Side-by-Side */}
             <div>
               <label className="text-xs font-bold text-slate-400 uppercase">Fee (₱)</label>
               <input required type="number" value={formData.fee} onChange={e => setFormData({...formData, fee: Number(e.target.value)})} className="w-full px-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 outline-none" />
@@ -414,7 +496,6 @@ const CertModal = ({ isEdit, onClose, formData, setFormData, subOptions, setSubO
               <input required type="number" value={formData.days} onChange={e => setFormData({...formData, days: Number(e.target.value)})} className="w-full px-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 outline-none" />
             </div>
 
-            {/* ROW: URL below Fee/Days */}
             <div className="col-span-2">
               <label className="text-xs font-bold text-slate-400 uppercase">URL</label>
               <input type="text" value={formData.url} onChange={e => setFormData({...formData, url: e.target.value})} placeholder="https://..." className="w-full px-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 outline-none" />
@@ -460,13 +541,14 @@ const CertModal = ({ isEdit, onClose, formData, setFormData, subOptions, setSubO
   );
 };
 
+// ... StaffModal component remains unchanged ...
 const StaffModal = ({ isEdit, onClose, formData, setFormData, onSubmit }: any) => {
     const isPasswordMatch = formData.password === formData.password_confirmation;
     const isPasswordValid = isEdit ? (formData.password === '' || isPasswordMatch) : (formData.password !== '' && isPasswordMatch);
 
     return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-        <div className="bg-white dark:bg-slate-950 w-full max-w-md rounded-2xl shadow-2xl border animate-in zoom-in-95">
+        <div className="bg-white dark:bg-slate-950 w-full max-md rounded-2xl shadow-2xl border animate-in zoom-in-95">
         <div className="px-6 py-4 border-b dark:border-slate-800 flex items-center justify-between">
             <h3 className="text-xl font-bold">{isEdit ? 'Update Staff' : 'Invite Staff'}</h3>
             <button onClick={onClose} className="p-2 rounded-xl text-slate-500"><X size={20} /></button>
@@ -480,8 +562,8 @@ const StaffModal = ({ isEdit, onClose, formData, setFormData, onSubmit }: any) =
                 <div>
                     <label className="text-xs font-bold text-slate-400 uppercase">Role</label>
                     <select value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} className="w-full px-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 outline-none">
-                        <option value="Medical Staff">Medical Staff</option>
-                        <option value="Hospital Casher">Hospital Casher</option>
+                        <option value="Medical Records">Medical Records</option>
+                        <option value="Hospital Cashier">Hospital Cashier</option>
                         <option value="administrator">Administrator</option>
                     </select>
                 </div>
