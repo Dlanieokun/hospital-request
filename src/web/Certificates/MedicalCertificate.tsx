@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router'; // Import useLocation
+import { useLocation } from 'react-router'; 
 
 import hospitalLogo from '../../assets/logo.png'; 
 
 const MedicalCertificate = () => {
-  // 1. Access the state passed from navigate
   const location = useLocation();
-  const mappedData = location.state?.mappedData as Record<string, string> | undefined;
+  const mappedData = location.state?.mappedData as Record<string, string | number> | undefined;
 
-  // 2. Unified State for all certificate fields
   const [certData, setCertData] = useState({
     date: '',
-    patientName: '',
+    firstname: '',
+    middlename: '',
+    lastname: '',
     address: '',
     dateAdmitted: '',
     dateDischarged: '',
@@ -20,24 +20,41 @@ const MedicalCertificate = () => {
     physician: '',
   });
 
-  // 3. Sync Logic: Updates the form when the location state is available
+  // Helper to convert full middle name to Initial
+  const getInitial = (name: string) => {
+    if (!name) return '';
+    const trimmed = name.trim();
+    return trimmed ? `${trimmed.charAt(0).toUpperCase()}.` : '';
+  };
+
   useEffect(() => {
     if (mappedData) {
+      const processedData = { ...mappedData };
+      // Automatically convert middlename to initial when data is loaded
+      if (processedData.middlename) {
+        processedData.middlename = getInitial(processedData.middlename as string);
+      }
+
       setCertData((prev) => ({
         ...prev,
-        ...mappedData, // Overwrites fields with values from the mapping
+        ...processedData, 
       }));
     }
   }, [mappedData]);
 
-  // 4. Handle manual typing in fields
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setCertData({ ...certData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    
+    // Force middle name to be an initial if manually typed
+    if (name === 'middlename') {
+      setCertData({ ...certData, [name]: getInitial(value) });
+    } else {
+      setCertData({ ...certData, [name]: value });
+    }
   };
 
   return (
     <div className="min-h-screen bg-gray-100 py-10 print:bg-white print:py-0">
-      {/* Print Button - Hidden on Paper */}
       <div className="max-w-[8.5in] mx-auto mb-6 flex justify-end print:hidden">
         <button 
           onClick={() => window.print()}
@@ -47,13 +64,9 @@ const MedicalCertificate = () => {
         </button>
       </div>
 
-      {/* Main Container - Universal Bond Paper size */}
       <div className="max-w-[8.5in] mx-auto bg-white text-black font-serif shadow-sm print:shadow-none print:w-full">
-        
-        {/* Strict Margins */}
         <div className="pt-[10mm] pb-[10mm] px-12 flex flex-col min-h-[11in] print:min-h-screen">
           
-          {/* Header Section */}
           <div className="flex flex-col items-center text-center mb-8 relative">
             <div className="absolute left-0 top-0 w-24 h-24 flex items-center justify-center">
               <img 
@@ -74,7 +87,6 @@ const MedicalCertificate = () => {
             </h2>
           </div>
 
-          {/* Date Field - Reactive */}
           <div className="text-right mb-8">
             <div className="inline-flex items-baseline">
               <span className="mr-2 italic">Date</span>
@@ -88,20 +100,35 @@ const MedicalCertificate = () => {
             </div>
           </div>
 
-          {/* Body Section */}
           <div className="space-y-6 leading-relaxed flex-grow">
             <p className="font-bold">TO WHOM IT MAY CONCERN:</p>
 
             <div className="relative">
               <div className="flex items-baseline gap-2">
                 <span className="font-bold whitespace-nowrap uppercase">THIS IS TO CERTIFY that</span>
-                <input 
-                  name="patientName"
-                  value={certData.patientName}
-                  onChange={handleChange}
-                  type="text" 
-                  className="flex-grow border-b border-black outline-none bg-transparent px-2 text-center font-bold" 
-                />
+                <div className="flex-grow border-b border-black flex items-baseline px-2 font-bold uppercase">
+                  <input 
+                    name="firstname"
+                    value={certData.firstname}
+                    onChange={handleChange}
+                    placeholder="First Name"
+                    className="w-[40%] outline-none bg-transparent text-center" 
+                  />
+                  <input 
+                    name="middlename"
+                    value={certData.middlename}
+                    onChange={handleChange}
+                    placeholder="M.I."
+                    className="w-[15%] outline-none bg-transparent text-center" 
+                  />
+                  <input 
+                    name="lastname"
+                    value={certData.lastname}
+                    onChange={handleChange}
+                    placeholder="Last Name"
+                    className="w-[45%] outline-none bg-transparent text-center" 
+                  />
+                </div>
               </div>
               <p className="text-xs italic text-center ml-40">(Name of Patient)</p>
             </div>
@@ -141,7 +168,6 @@ const MedicalCertificate = () => {
             </div>
             <p className="text-xs italic text-left pl-10">(Date discharged)</p>
 
-            {/* Diagnosis Section */}
             <div className="mt-8">
               <h3 className="font-bold underline uppercase">Diagnosis:</h3>
               <div 
@@ -160,7 +186,6 @@ const MedicalCertificate = () => {
               </div>
             </div>
 
-            {/* Remark Section */}
             <div className="mt-8">
               <h3 className="font-bold underline uppercase">Remark:</h3>
               <div 
@@ -180,7 +205,6 @@ const MedicalCertificate = () => {
             </div>
           </div>
 
-          {/* Footer / Signature - Reactive */}
           <div className="mt-12 flex flex-col items-end break-inside-avoid">
             <div className="w-80 text-center">
               <input 

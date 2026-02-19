@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import hospitalLogo from '../../assets/logo.png'; 
 
 const MedicoLegalReport = () => {
   const [formData, setFormData] = useState({
@@ -43,7 +44,7 @@ const MedicoLegalReport = () => {
           <div className="flex flex-col items-center text-center mb-10 relative">
             <div className="absolute left-0 top-0 w-24 h-24 flex items-center justify-center">
               <img 
-                src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a0/Seal_of_the_Department_of_Health_%28Philippines%29.svg/1200px-Seal_of_the_Department_of_Health_%28Philippines%29.svg.png" 
+                src={hospitalLogo}
                 alt="Hospital Logo" 
                 className="w-20 h-20 object-contain"
               />

@@ -1,26 +1,63 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router'; 
+import hospitalLogo from '../../assets/logo.png'; 
 
 const MedicalAbstract = () => {
+  const location = useLocation();
+  const mappedData = location.state?.mappedData as Record<string, string | number> | undefined;
+
   const [formData, setFormData] = useState({
     department: '',
-    patientName: '',
+    firstname: '',
+    middlename: '',
+    lastname: '',
+    suffix: '',
     date: '',
-    ageSex: '',
+    age: '',
+    sex: '',
     civilStatus: '',
     occupation: '',
     religion: '',
     address: '',
     physicianName: '',
     licNo: '',
-    age_sex: '',
-    civil_status: '',
-    occupation_field: '',
-    religion_field: '',
-    address_field: ''
+    pastMedicalHistory: '',
+    diagnosis: '',
+    medications: '',
+    chiefComplaint: ''
   });
 
+  // Helper to convert full middle name to Initial
+  const getInitial = (name: string) => {
+    if (!name) return '';
+    const trimmed = name.trim();
+    return trimmed ? `${trimmed.charAt(0).toUpperCase()}.` : '';
+  };
+
+  useEffect(() => {
+    if (mappedData) {
+      // Automatically convert middlename to initial when data is loaded
+      const processedData = { ...mappedData };
+      if (processedData.middlename) {
+        processedData.middlename = getInitial(processedData.middlename as string);
+      }
+      
+      setFormData((prev) => ({
+        ...prev,
+        ...processedData, 
+      }));
+    }
+  }, [mappedData]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    
+    // If user types in middle name field, force it to be an initial
+    if (name === 'middlename') {
+      setFormData({ ...formData, [name]: getInitial(value) });
+    } else {
+      setFormData({ ...formData, [name]: value });
+    }
   };
 
   const linedStyle = {
@@ -49,7 +86,7 @@ const MedicalAbstract = () => {
           <div className="flex flex-col items-center text-center mb-4 relative">
             <div className="absolute left-0 top-0 w-24 h-24 flex items-center justify-center">
               <img 
-                src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a0/Seal_of_the_Department_of_Health_%28Philippines%29.svg/1200px-Seal_of_the_Department_of_Health_%28Philippines%29.svg.png" 
+                src={hospitalLogo}
                 alt="Hospital Logo" 
                 className="w-20 h-20 object-contain"
               />
@@ -76,16 +113,36 @@ const MedicalAbstract = () => {
             <h2 className="text-2xl font-bold uppercase tracking-widest">MEDICAL ABSTRACT</h2>
           </div>
 
-          {/* Patient Info */}
+          {/* Patient Info Section */}
           <div className="grid grid-cols-12 gap-y-2 text-[11pt] mb-6">
             <div className="col-span-8 flex items-baseline">
               <span className="shrink-0 w-32 font-bold">Name of Patient :</span>
-              <input 
-                name="patientName" 
-                value={formData.patientName}
-                onChange={handleChange} 
-                className="flex-grow border-b border-dashed border-black outline-none px-2" 
-              />
+              <div className="flex-grow border-b border-dashed border-black flex items-baseline px-1">
+                <input 
+                  name="firstname" 
+                  value={formData.firstname}
+                  onChange={handleChange} 
+                  className="w-[35%] outline-none bg-transparent" 
+                />
+                <input 
+                  name="middlename" 
+                  value={formData.middlename}
+                  onChange={handleChange} 
+                  className="w-[10%] outline-none bg-transparent text-center" 
+                />
+                <input 
+                  name="lastname" 
+                  value={formData.lastname}
+                  onChange={handleChange} 
+                  className="w-[35%] outline-none bg-transparent" 
+                />
+                <input 
+                  name="suffix" 
+                  value={formData.suffix}
+                  onChange={handleChange} 
+                  className="w-[20%] outline-none bg-transparent" 
+                />
+              </div>
             </div>
             <div className="col-span-4 flex items-baseline pl-4">
               <span className="shrink-0 font-bold">Date :</span>
@@ -97,9 +154,28 @@ const MedicalAbstract = () => {
               />
             </div>
 
-            {/* Manually defining fields for better name/value control */}
+            {/* AGE / SEX ROW */}
+            <div className="col-span-8 flex items-baseline">
+              <span className="shrink-0 w-32 font-bold">Age / Sex :</span>
+              <div className="flex-grow border-b border-dashed border-black flex items-baseline">
+                <input 
+                  name="age"
+                  value={formData.age} 
+                  onChange={handleChange} 
+                  className="w-16 outline-none px-2 bg-transparent text-center" 
+                />
+                <span className="px-1 text-zinc-400">/</span>
+                <input 
+                  name="sex"
+                  value={formData.sex} 
+                  onChange={handleChange} 
+                  className="flex-grow outline-none px-2 bg-transparent" 
+                />
+              </div>
+            </div>
+            <div className="col-span-4"></div>
+
             {[
-              { label: 'Age / Sex', name: 'ageSex' },
               { label: 'Civil Status', name: 'civilStatus' },
               { label: 'Occupation', name: 'occupation' },
               { label: 'Religion', name: 'religion' },
@@ -110,7 +186,7 @@ const MedicalAbstract = () => {
                   <span className="shrink-0 w-32 font-bold">{field.label} :</span>
                   <input 
                     name={field.name}
-                    value={formData[field.name as keyof typeof formData]} 
+                    value={(formData as any)[field.name]} 
                     onChange={handleChange} 
                     className="flex-grow border-b border-dashed border-black outline-none px-2" 
                   />
@@ -124,13 +200,32 @@ const MedicalAbstract = () => {
           <div className="flex-grow space-y-6 text-[11pt]">
             <div className="flex items-start">
               <span className="font-bold w-36 shrink-0 pt-1">Chief Complaint :</span>
-              <div contentEditable className="flex-grow outline-none border-b border-dashed border-black min-h-[28px]"></div>
+              <div 
+                contentEditable 
+                suppressContentEditableWarning={true}
+                onInput={(e) => setFormData({...formData, chiefComplaint: e.currentTarget.textContent || ''})}
+                className="flex-grow outline-none border-b border-dashed border-black min-h-[28px]"
+              >
+                {formData.chiefComplaint}
+              </div>
             </div>
 
-            {['Past Medical History', 'Diagnosis', 'Medications'].map((section) => (
-              <div key={section} className="space-y-1">
-                <h3 className="font-bold">{section} :</h3>
-                <div contentEditable style={linedStyle} className="w-full min-h-[112px] outline-none text-justify whitespace-pre-wrap"></div>
+            {[
+              { label: 'Past Medical History', key: 'pastMedicalHistory' },
+              { label: 'Diagnosis', key: 'diagnosis' },
+              { label: 'Medications', key: 'medications' }
+            ].map((section) => (
+              <div key={section.key} className="space-y-1">
+                <h3 className="font-bold">{section.label} :</h3>
+                <div 
+                  contentEditable 
+                  suppressContentEditableWarning={true}
+                  style={linedStyle} 
+                  className="w-full min-h-[112px] outline-none text-justify whitespace-pre-wrap"
+                  onInput={(e) => setFormData({...formData, [section.key]: e.currentTarget.textContent || ''})}
+                >
+                  {(formData as any)[section.key]}
+                </div>
               </div>
             ))}
             <p className="font-bold text-center mt-8">Thank You and God Bless!!!</p>
@@ -162,7 +257,6 @@ const MedicalAbstract = () => {
               </div>
             </div>
           </div>
-
         </div>
       </div>
 
@@ -171,7 +265,6 @@ const MedicalAbstract = () => {
           @page { size: auto; margin: 10mm 0mm; }
           body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           div[contenteditable] { background-image: linear-gradient(transparent, transparent 27px, #333 28px) !important; }
-          input::placeholder { color: transparent; }
         }
       `}</style>
     </div>
