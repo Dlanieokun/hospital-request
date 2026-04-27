@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, UserCircle, Hospital, Loader2 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
@@ -10,26 +10,38 @@ const Login = () => {
   const [formData, setFormData] = useState({ login: '', password: '' });
   const [isLoading, setIsLoading] = useState(false);
 
+  // Speed Optimization: Focus the first input on mount
+  const inputRef = React.useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading) return;
     setIsLoading(true);
 
     const loginPromise = fetch(`${API_BASE_URL}/login`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json', 
+        'Accept': 'application/json' 
+      },
       body: JSON.stringify(formData),
     }).then(async (res) => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Invalid credentials');
 
+      // Sync storage before navigation
       localStorage.setItem('access_token', data.access_token);
       localStorage.setItem('token_type', data.token_type);
       localStorage.setItem('user', JSON.stringify(data.user));
 
+      // Replace true for faster history stack handling
       navigate('/hospital', { replace: true });
       return data;
     });
@@ -40,7 +52,12 @@ const Login = () => {
       error: (err) => `${err.message}`,
     });
 
-    try { await loginPromise; } catch (e) { console.error(e); } finally { setIsLoading(false); }
+    try { 
+      await loginPromise; 
+    } catch (e) { 
+      console.error(e); 
+      setIsLoading(false); // Reset only on error to allow fast redirect on success
+    }
   };
 
   return (
@@ -60,17 +77,35 @@ const Login = () => {
             <label className="block text-sm font-semibold text-slate-700 mb-2">Username or Email</label>
             <div className="relative">
               <UserCircle className="w-5 h-5 text-slate-400 absolute left-3 top-3" />
-              <input name="login" required onChange={handleChange} className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition bg-slate-50/50" placeholder="Enter credentials" />
+              <input 
+                ref={inputRef}
+                name="login" 
+                required 
+                onChange={handleChange} 
+                className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition bg-slate-50/50" 
+                placeholder="Enter credentials" 
+              />
             </div>
           </div>
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-2">Password</label>
             <div className="relative">
               <Lock className="w-5 h-5 text-slate-400 absolute left-3 top-3" />
-              <input name="password" type="password" required onChange={handleChange} className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition bg-slate-50/50" placeholder="••••••••" />
+              <input 
+                name="password" 
+                type="password" 
+                required 
+                onChange={handleChange} 
+                className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition bg-slate-50/50" 
+                placeholder="••••••••" 
+              />
             </div>
           </div>
-          <button disabled={isLoading} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-all flex justify-center items-center shadow-lg shadow-blue-200">
+          <button 
+            type="submit"
+            disabled={isLoading} 
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-all flex justify-center items-center shadow-lg shadow-blue-200 active:scale-[0.98]"
+          >
             {isLoading ? <Loader2 className="animate-spin" /> : 'Sign In'}
           </button>
         </form>

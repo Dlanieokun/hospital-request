@@ -1,13 +1,13 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { 
   DndContext, 
   useDraggable, 
   useDroppable, 
-  DragEndEvent, 
   PointerSensor, 
   useSensor, 
-  useSensors 
+  useSensors, 
+  type DragEndEvent
 } from '@dnd-kit/core';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -66,16 +66,16 @@ const DroppableSlot = ({
     <div className="flex flex-col mb-4 p-3 border rounded-lg bg-slate-50 border-slate-200 transition-colors">
       <div className="text-[10px] font-bold text-slate-500 uppercase mb-2 tracking-wider flex justify-between">
         <span>{label}</span>
-        <span className="text-slate-400">{mappedValues.length} Keys</span>
+        <span className="text-slate-400">{(mappedValues || []).length} Keys</span>
       </div>
       
       <div
         ref={setNodeRef}
         className={`min-h-[50px] p-2 rounded border-2 border-dashed flex flex-wrap gap-2 transition-all items-center
           ${isOver ? 'bg-blue-100 border-blue-400' : 'bg-white border-slate-200'}
-          ${mappedValues.length > 0 ? 'border-solid border-green-500' : ''}`}
+          ${(mappedValues || []).length > 0 ? 'border-solid border-green-500' : ''}`}
       >
-        {mappedValues.length > 0 ? (
+        {(mappedValues || []).length > 0 ? (
           mappedValues.map((val) => (
             <div 
               key={val} 
@@ -105,33 +105,28 @@ const DataMapping = () => {
   const location = useLocation();
   const state = location.state as LocationState;
   
-  const getHeaders = () => ({
-    'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-  });
-
   const certificate = state?.certificate;
   const patient = state?.patient;
 
   const fieldsConfig: Record<string, string[]> = {
-    "medical-certificate": ["date", "firstname", "middlename", "lastname", "suffix", "address", "dateAdmitted", "dateDischarged", "diagnosis", "remark", "physician"],
-    "medical-abstract": ["department", "firstname", "middlename", "lastname", "suffix", "date", "age", "sex", "civilStatus", "occupation", "religion", "address", "physicianName", "licNo","pastMedicalHistory", "diagnosis", "medications"],
+    "Medical Certificate": ["date", "firstname", "middlename", "lastname", "suffix", "address", "dateAdmitted", "dateDischarged", "diagnosis", "remark", "physician"],
+    "Medical Abstract": ["department", "firstname", "middlename", "lastname", "suffix", "date", "age", "sex", "civilStatus", "occupation", "religion", "address", "physicianName", "licNo","pastMedicalHistory", "diagnosis", "medications"],
     "Medico Legal": ["name", "age", "sex", "address", "allegedCase", "allegedDate", "allegedTime", "allegedPlace", "dateExam", "timeExam", "physicalExam", "remarks", "minDays", "maxDays", "physician", "datePrepared"],
     "Live Birth": ["registryNo", "province", "city", "childFirst", "childMiddle", "childLast", "sex", "dob", "pob", "motherName", "fatherName"]
   };
 
   const initialType = (certificate?.syn_cert && fieldsConfig[certificate.syn_cert]) 
     ? certificate.syn_cert 
-    : "medical-certificate";
+    : "Medical Certificate";
 
   const [currentType, setCurrentType] = useState<string>(initialType);
+  const [mappings, setMappings] = useState<{ [key: string]: string[] }>({});
 
-  // Mappings now store an array of strings per field
-  const [mappings, setMappings] = useState<{ [key: string]: string[] }>(() => {
-    const fields = fieldsConfig[initialType] || [];
-    return Object.fromEntries(fields.map(field => [field, []]));
-  });
+  // Reset mappings whenever the currentType changes
+  useEffect(() => {
+    const fields = fieldsConfig[currentType] || [];
+    setMappings(Object.fromEntries(fields.map(field => [field, []])));
+  }, [currentType]);
 
   const sourceKeys = useMemo(() => {
     if (!patient?.datas?.data) return [];
@@ -150,11 +145,11 @@ const DataMapping = () => {
       const key = active.id as string;
       
       setMappings(prev => {
-        // Prevent adding the same key twice to the same field
-        if (prev[field].includes(key)) return prev;
+        const currentFieldValues = prev[field] || [];
+        if (currentFieldValues.includes(key)) return prev;
         return {
           ...prev,
-          [field]: [...prev[field], key]
+          [field]: [...currentFieldValues, key]
         };
       });
     }
@@ -163,18 +158,11 @@ const DataMapping = () => {
   const handleRemoveKey = (field: string, keyToRemove: string) => {
     setMappings(prev => ({
       ...prev,
-      [field]: prev[field].filter(k => k !== keyToRemove)
+      [field]: (prev[field] || []).filter(k => k !== keyToRemove)
     }));
   };
 
-  const handleTypeChange = (type: string) => {
-    setCurrentType(type);
-    const newFields = fieldsConfig[type] || [];
-    setMappings(Object.fromEntries(newFields.map(field => [field, []])));
-  };
-
   const handleSaveMapping = async () => {
-    // Sending keys joined by a comma or as an array depending on backend needs
     const allMappedKeys = Object.entries(mappings).map(([key, values]) => ({
       key: key,
       key_sync: values.join(', ') 
@@ -183,7 +171,11 @@ const DataMapping = () => {
     try {
       const response = await fetch(`${API_BASE_URL}/sync/${certificate?.id}`, {
         method: 'POST',
-        headers: getHeaders(),
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
         body: JSON.stringify({ 
           data: allMappedKeys,
           sync_name: currentType
@@ -200,7 +192,7 @@ const DataMapping = () => {
     }
   };
 
-  if (!state) return <div className="p-10 text-center">No data provided for mapping.</div>;
+  if (!state) return <div className="p-10 text-center">No data provided. Please navigate from the dashboard.</div>;
 
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
@@ -226,7 +218,7 @@ const DataMapping = () => {
                 {Object.keys(fieldsConfig).map((type) => (
                   <button 
                     key={type}
-                    onClick={() => handleTypeChange(type)}
+                    onClick={() => setCurrentType(type)}
                     className={`px-3 py-1 text-[10px] font-bold rounded uppercase transition-colors ${currentType === type ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-500 hover:bg-slate-300'}`}
                   >
                     {type}

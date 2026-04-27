@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { ScanLine, X, CheckCircle, Loader2, Search } from 'lucide-react';
 
-// const API_BASE_URL = "http://127.0.0.1:8000/api";
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 interface OnlineStatusItem {
@@ -29,32 +28,30 @@ const Treasurer: React.FC = () => {
   const [collections, setCollections] = useState<CollectionItem[]>([]);
   const scanInputRef = useRef<HTMLInputElement>(null);
 
-  const getHeaders = () => ({
+  const getHeaders = useCallback(() => ({
     'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
     'Content-Type': 'application/json',
     'Accept': 'application/json',
-  });
+  }), []);
 
-  const fetchCollections = async () => {
+  const fetchCollections = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/receipts`, { headers: getHeaders() });
+      const headers = getHeaders();
+      const response = await fetch(`${API_BASE_URL}/receipts`, { headers });
       if (response.ok) {
         const data = await response.json();
-        setCollections(Array.isArray(data) ? data : data.data || []);
-        const online = await fetch(`${API_BASE_URL}/online-list`, { headers: getHeaders() });
+        const collectionData = Array.isArray(data) ? data : data.data || [];
+        setCollections(collectionData);
+
+        const online = await fetch(`${API_BASE_URL}/online-list`, { headers });
         if(online.ok){
           const online_list = await online.json();
-          console.log(online_list);
-          
           const check = await fetch(
             "https://apps.leyteprovince.gov.ph/online-payment-api/public/api/v1/status",
             {
               method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Accept: "application/json",
-              },
+              headers: { "Content-Type": "application/json", Accept: "application/json" },
               body: JSON.stringify(online_list),
             }
           );
@@ -63,14 +60,13 @@ const Treasurer: React.FC = () => {
             const paidPayments = check_data.data.filter(
               (item : OnlineStatusItem) => item.payment_status === "paid"
             );
-
-            console.log(paidPayments.length > 0);
-            const response = await fetch(`${API_BASE_URL}/online-paid`, {
-              method: "POST",
-              headers: getHeaders(),
-              body: JSON.stringify(paidPayments),
-            });
-            console.log(response);
+            if (paidPayments.length > 0) {
+              await fetch(`${API_BASE_URL}/online-paid`, {
+                method: "POST",
+                headers,
+                body: JSON.stringify(paidPayments),
+              });
+            }
           }
         }
       }
@@ -79,10 +75,9 @@ const Treasurer: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getHeaders]);
 
-  // Main Payment Logic
-  const handlePayment = async (id: number) => {
+  const handlePayment = useCallback(async (id: number) => {
     setProcessingId(id);
     try {
       const response = await fetch(`${API_BASE_URL}/receipts/${id}`, {
@@ -105,10 +100,9 @@ const Treasurer: React.FC = () => {
     } finally {
       setProcessingId(null);
     }
-  };
+  }, [getHeaders]);
 
-  // Auto-Pay Logic for Scanner
-  const processAutoPayment = async (scannedReference: string) => {
+  const processAutoPayment = useCallback(async (scannedReference: string) => {
     const targetItem = collections.find(
       item => item.reference.toLowerCase() === scannedReference.toLowerCase()
     );
@@ -124,12 +118,11 @@ const Treasurer: React.FC = () => {
     }
 
     await handlePayment(targetItem.id);
-  };
+  }, [collections, handlePayment]);
 
   const handleScanSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const scannedValue = scanInputRef.current?.value.trim() || "";
-    
     if (scannedValue) {
       setIsScannerModalOpen(false);
       setSearchTerm(scannedValue);
@@ -140,33 +133,36 @@ const Treasurer: React.FC = () => {
 
   useEffect(() => {
     fetchCollections();
-  }, []);
+  }, [fetchCollections]);
 
   useEffect(() => {
     if (isScannerModalOpen) {
-      const timer = setTimeout(() => scanInputRef.current?.focus(), 100);
+      const timer = setTimeout(() => scanInputRef.current?.focus(), 50);
       return () => clearTimeout(timer);
     }
   }, [isScannerModalOpen]);
 
-  // Table Filtering Logic
-  const filteredCollections = collections.filter((item) => {
-    const dateStr = item.created_at || "2026-01-01"; 
-    const matchesYear = dateStr.startsWith(selectedYear);
-    const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         item.reference.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesYear && matchesSearch;
-  });
+  // Optimized Filtering and Pagination
+  const { currentItems, totalPages } = useMemo(() => {
+    const filtered = collections.filter((item) => {
+      const dateStr = item.created_at || "2026-01-01"; 
+      const matchesYear = dateStr.startsWith(selectedYear);
+      const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                           item.reference.toLowerCase().includes(searchTerm.toLowerCase());
+      return matchesYear && matchesSearch;
+    });
 
-  const itemsPerPage = 5;
-  const totalPages = Math.max(1, Math.ceil(filteredCollections.length / itemsPerPage));
-  const currentItems = filteredCollections.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+    const itemsPerPage = 5;
+    const total = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
+    const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+    return { currentItems: paginated, totalPages: total };
+  }, [collections, searchTerm, selectedYear, currentPage]);
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen font-sans">
       <div className="max-w-6xl mx-auto bg-white p-6 rounded-xl shadow-sm border border-gray-100">
         
-        {/* Header & Search Bar */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
           <h2 className="text-2xl font-bold text-gray-800 tracking-tight">Cashier Collections</h2>
           
@@ -198,14 +194,12 @@ const Treasurer: React.FC = () => {
             <button 
               onClick={() => setIsScannerModalOpen(true)}
               className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center justify-center transition-all shadow-md active:scale-95"
-              title="Open Scanner"
             >
               <ScanLine size={20}/>
             </button>
           </div>
         </div>
 
-        {/* Records Table */}
         <div className="overflow-x-auto rounded-xl border border-gray-200">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -230,14 +224,11 @@ const Treasurer: React.FC = () => {
                   <tr key={item.id} className="hover:bg-gray-50/50 transition-colors">
                     <td className="px-6 py-4 text-sm font-mono font-semibold text-blue-700">{item.reference}</td>
                     <td className="px-6 py-4 text-sm text-gray-700 capitalize font-medium">{item.name}</td>
-                    
-                    {/* Mode Column Styling */}
                     <td className="px-6 py-4 text-sm">
                         <span className="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border border-blue-100">
                             {item.mode || 'N/A'}
                         </span>
                     </td>
-
                     <td className="px-6 py-4 text-sm text-gray-900 font-bold">₱{item.paid.toLocaleString()}</td>
                     <td className="px-6 py-4 text-center text-sm">
                       <button 
@@ -273,7 +264,6 @@ const Treasurer: React.FC = () => {
           </table>
         </div>
 
-        {/* Pagination Controls */}
         <div className="mt-6 flex justify-between items-center border-t border-gray-100 pt-4">
           <span className="text-sm text-gray-500 font-medium">Page {currentPage} of {totalPages}</span>
           <div className="flex gap-2">
@@ -295,14 +285,10 @@ const Treasurer: React.FC = () => {
         </div>
       </div>
 
-      {/* Hardware Scanner Modal */}
       {isScannerModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-10 text-center relative border border-slate-100">
-            <button 
-              onClick={() => setIsScannerModalOpen(false)} 
-              className="absolute top-5 right-5 text-slate-400 hover:text-slate-600 transition-colors"
-            >
+            <button onClick={() => setIsScannerModalOpen(false)} className="absolute top-5 right-5 text-slate-400 hover:text-slate-600">
               <X size={24}/>
             </button>
             <div className="bg-blue-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -310,7 +296,6 @@ const Treasurer: React.FC = () => {
             </div>
             <h3 className="text-xl font-black text-slate-800 mb-2">Ready to Scan</h3>
             <p className="text-slate-500 mb-6 text-xs uppercase tracking-widest font-bold">Hardware Listener Active</p>
-            
             <form onSubmit={handleScanSubmit}>
               <input 
                 ref={scanInputRef} 
@@ -323,7 +308,6 @@ const Treasurer: React.FC = () => {
               <div className="text-xs font-mono text-gray-400 bg-gray-50 py-4 rounded-xl border border-gray-100 border-dashed animate-pulse">
                 Awaiting Scanner Input...
               </div>
-              <p className="mt-4 text-[10px] text-gray-400 italic">Payments will be processed automatically upon detection.</p>
             </form>
           </div>
         </div>

@@ -1,18 +1,14 @@
-import React, { useState } from 'react';
+import React from 'react';
 
 const FullCertificateOfLiveBirth = () => {
-  const [formData, setFormData] = useState({});
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  // Removed unused [formData, setFormData] to fix the "defined but never used" error
 
   const BoxLabel = ({ children }: { children: React.ReactNode }) => (
     <span className="text-[6.5pt] uppercase font-bold leading-none block">{children}</span>
   );
 
   const SubLabel = ({ children }: { children: React.ReactNode }) => (
-    <p className="text-[5.5pt] italic text-center leading-none mt-0.5">{children}</p>
+    <span className="text-[5.5pt] italic text-center leading-none mt-0.5 block">{children}</span>
   );
 
   return (
@@ -174,12 +170,24 @@ const FullCertificateOfLiveBirth = () => {
               </p>
               <div className="grid grid-cols-2 gap-10 mt-2 px-8">
                 <div className="space-y-3">
-                  <div className="mt-4"><input className="w-full border-b border-black outline-none" /><SubLabel>Signature</SubLabel></div>
-                  <div><input className="w-full border-b border-black outline-none text-center font-bold" /><SubLabel>Name in Print</SubLabel></div>
+                  <div className="mt-4">
+                    <input className="w-full border-b border-black outline-none" />
+                    <SubLabel>Signature</SubLabel>
+                  </div>
+                  <div>
+                    <input className="w-full border-b border-black outline-none text-center font-bold" />
+                    <SubLabel>Name in Print</SubLabel>
+                  </div>
                 </div>
                 <div className="space-y-3">
-                  <div><input className="w-full border-b border-black outline-none" /><SubLabel>Address</SubLabel></div>
-                  <div><input className="w-full border-b border-black outline-none text-center" /><SubLabel>Date</SubLabel></div>
+                  <div>
+                    <input className="w-full border-b border-black outline-none" />
+                    <SubLabel>Address</SubLabel>
+                  </div>
+                  <div>
+                    <input className="w-full border-b border-black outline-none text-center" />
+                    <SubLabel>Date</SubLabel>
+                  </div>
                 </div>
               </div>
             </div>
