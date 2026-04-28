@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { 
-  ChevronLeft, ChevronRight, Home, 
+import {
+  ChevronLeft, ChevronRight, Home,
   Landmark, FileCheck, Settings, LogOut,
   Activity
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useSessionTimeout } from '../hooks/useSessionTimeout';
+import SessionTimeoutModal from '../components/SessionTimeoutModal';
 
 // IMPORT ASSETS
 import leyteLogo from '../assets/leyte_provl_logo.jpg';
@@ -13,6 +15,9 @@ import hospitalLogo from '../assets/logo.png';
 
 const Layouts: React.FC = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [showTimeoutWarning, setShowTimeoutWarning] = useState(false);
+  const [countdown, setCountdown] = useState(10);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -21,10 +26,41 @@ const Layouts: React.FC = () => {
   const user = userJson ? JSON.parse(userJson) : { name: 'Medical Staff', role: 'Staff' };
   const userRole = user.role?.toLowerCase() || '';
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     localStorage.clear();
     toast.success("Signed out successfully");
     navigate('/login', { replace: true });
+  }, [navigate]);
+
+  const handleTimeout = useCallback(() => {
+    if (countdownRef.current) clearInterval(countdownRef.current);
+    setShowTimeoutWarning(false);
+    localStorage.clear();
+    toast.error("Session expired due to inactivity");
+    navigate('/login', { replace: true });
+  }, [navigate]);
+
+  const handleWarning = useCallback(() => {
+    setShowTimeoutWarning(true);
+    setCountdown(10);
+    if (countdownRef.current) clearInterval(countdownRef.current);
+    countdownRef.current = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          if (countdownRef.current) clearInterval(countdownRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }, []);
+
+  const { reset } = useSessionTimeout({ onWarning: handleWarning, onTimeout: handleTimeout });
+
+  const handleStayLoggedIn = () => {
+    if (countdownRef.current) clearInterval(countdownRef.current);
+    setShowTimeoutWarning(false);
+    reset();
   };
 
   const menuItems = [
@@ -60,6 +96,12 @@ const Layouts: React.FC = () => {
 
   return (
     <div className="flex min-h-screen bg-slate-50 transition-colors duration-300 text-slate-600">
+      <SessionTimeoutModal
+        isOpen={showTimeoutWarning}
+        countdown={countdown}
+        onStayLoggedIn={handleStayLoggedIn}
+        onLogout={handleLogout}
+      />
       {/* Sidebar */}
       <aside className={`h-screen sticky top-0 flex flex-col transition-all duration-500 border-r z-20 bg-white border-slate-200 shadow-xl ${isCollapsed ? 'w-20' : 'w-72'}`}>
         
